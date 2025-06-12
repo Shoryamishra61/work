@@ -114,7 +114,7 @@ const mockBadges: Badge[] = [
     id: '1',
     name: 'AI Explorer',
     icon: '🤖',
-    description: 'Completed 5 AI & ML videos',
+    description: 'Finished 5 AI/ML videos', // Shortened
     earnedDate: '2024-01-15',
     color: '#8B5CF6',
   },
@@ -122,7 +122,7 @@ const mockBadges: Badge[] = [
     id: '2',
     name: 'Learning Streak',
     icon: '🔥',
-    description: '15-day learning streak',
+    description: 'Achieved a 15-day streak', // Shortened
     earnedDate: '2024-01-20',
     color: '#EF4444',
   },
@@ -130,7 +130,7 @@ const mockBadges: Badge[] = [
     id: '3',
     name: 'Code Master',
     icon: '💻',
-    description: 'Completed 10 programming videos',
+    description: 'Completed 10 code videos', // Shortened
     earnedDate: '2024-01-10',
     color: '#10B981',
   },
@@ -138,7 +138,7 @@ const mockBadges: Badge[] = [
     id: '4',
     name: 'Community Helper',
     icon: '🤝',
-    description: 'Helped 50+ community members',
+    description: 'Helped 50+ members', // Shortened
     earnedDate: '2024-01-05',
     color: '#F59E0B',
   },
@@ -245,16 +245,16 @@ export default function ProfileScreen() {
               <Text style={styles.statLabel}>Followers</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats.following}</Text>
-              <Text style={styles.statLabel}>Following</Text>
+              <Text style={styles.secondaryStatNumber}>{userStats.following}</Text>
+              <Text style={styles.secondaryStatLabel}>Following</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats.likes}</Text>
-              <Text style={styles.statLabel}>Likes</Text>
+              <Text style={styles.secondaryStatNumber}>{userStats.likes}</Text>
+              <Text style={styles.secondaryStatLabel}>Likes</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.statItem}
-              onPress={() => setShowProgressModal(true)}
+              onPress={() => setShowProgressModal(true)} // Videos is a primary stat
             >
               <Text style={styles.statNumber}>{userStats.videos}</Text>
               <Text style={styles.statLabel}>Videos</Text>
@@ -264,15 +264,15 @@ export default function ProfileScreen() {
           {/* Learning Progress */}
           <View style={styles.progressContainer}>
             <View style={styles.progressItem}>
-              <Zap size={20} color="#EF4444" />
+              <Zap size={18} color="#EF4444" /> {/* Icon size reduced */}
               <Text style={styles.progressText}>{userStats.streak} day streak</Text>
             </View>
             <View style={styles.progressItem}>
-              <Clock size={20} color="#10B981" />
+              <Clock size={18} color="#10B981" /> {/* Icon size reduced */}
               <Text style={styles.progressText}>{userStats.totalWatchTime} watched</Text>
             </View>
             <View style={styles.progressItem}>
-              <Award size={20} color="#F59E0B" />
+              <Award size={18} color="#F59E0B" /> {/* Icon size reduced */}
               <Text style={styles.progressText}>{userStats.badges} badges earned</Text>
             </View>
           </View>
@@ -421,15 +421,15 @@ export default function ProfileScreen() {
             <View style={styles.premiumFeatures}>
               <View style={styles.premiumFeature}>
                 <Award size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Access to premium videos</Text>
+                <Text style={styles.premiumFeatureText}>Premium video access</Text>
               </View>
               <View style={styles.premiumFeature}>
                 <Users size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Exclusive community access</Text>
+                <Text style={styles.premiumFeatureText}>Exclusive community</Text>
               </View>
               <View style={styles.premiumFeature}>
                 <TrendingUp size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Early access to new content</Text>
+                <Text style={styles.premiumFeatureText}>Early content access</Text>
               </View>
             </View>
 
@@ -536,6 +536,7 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
+    paddingHorizontal: 4, // Add some horizontal padding
   },
   statNumber: {
     fontSize: 20,
@@ -548,22 +549,37 @@ const styles = StyleSheet.create({
     color: '#CCCCCC',
     marginTop: 4,
   },
+  // Specific styles for less prominent stats
+  secondaryStatNumber: {
+    fontSize: 18, // Reduced font size
+    fontFamily: 'Poppins-Bold',
+    color: '#FFFFFF',
+  },
+  secondaryStatLabel: {
+    fontSize: 12, // Reduced font size
+    fontFamily: 'Inter-Regular',
+    color: '#A0A0A0', // Lighter color
+    marginTop: 4,
+  },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)', // Slightly more subtle background
     borderRadius: 16,
-    padding: 16,
+    paddingVertical: 12, // Reduced padding
+    paddingHorizontal: 10,
     marginBottom: 20,
   },
   progressItem: {
     alignItems: 'center',
+    flex: 1, // Distribute space
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
     fontFamily: 'Inter-Medium',
-    color: '#FFFFFF',
-    marginTop: 4,
+    color: '#E0E0E0', // Slightly dimmer white
+    marginTop: 3, // Reduced margin
+    textAlign: 'center',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -620,8 +636,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   contentTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 18, // Standardized size
+    fontFamily: 'Poppins-SemiBold', // Standardized font
     color: '#FFFFFF',
   },
   viewModeToggle: {
@@ -709,12 +725,12 @@ const styles = StyleSheet.create({
   gridVideoViews: {
     color: '#666666',
     fontFamily: 'Inter-Regular',
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
   },
   gridVideoLikes: {
     color: '#666666',
     fontFamily: 'Inter-Regular',
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
     marginLeft: 4,
   },
   listContainer: {
@@ -790,12 +806,12 @@ const styles = StyleSheet.create({
   listVideoViews: {
     color: '#666666',
     fontFamily: 'Inter-Regular',
-    fontSize: 14,
+    fontSize: 12, // Reduced font size
   },
   listVideoLikes: {
     color: '#666666',
     fontFamily: 'Inter-Regular',
-    fontSize: 14,
+    fontSize: 12, // Reduced font size
     marginLeft: 4,
   },
   listVideoMenu: {

@@ -65,7 +65,7 @@ const mockPosts: CommunityPost[] = [
     author: {
       name: 'Sarah Chen',
       avatar: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150',
-      title: 'ML Engineer',
+      title: 'ML Eng.', // Shortened title
       isVerified: true,
       level: 8,
     },
@@ -85,7 +85,7 @@ const mockPosts: CommunityPost[] = [
     author: {
       name: 'Alex Rodriguez',
       avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150',
-      title: 'Full Stack Developer',
+      title: 'FS Dev', // Shortened title
       isVerified: false,
       level: 5,
     },
@@ -103,7 +103,7 @@ const mockPosts: CommunityPost[] = [
     author: {
       name: 'Maya Patel',
       avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150',
-      title: 'Data Scientist',
+      title: 'Data Sci.', // Shortened title
       isVerified: true,
       level: 12,
     },
@@ -127,7 +127,7 @@ const mockStudyGroups: StudyGroup[] = [
     category: 'AI & ML',
     members: 1247,
     thumbnail: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=200',
-    description: 'Weekly discussions on machine learning concepts, paper reviews, and project collaborations.',
+    description: 'ML concepts, paper reviews, and project collaborations.', // Shortened
     isJoined: true,
     activity: 'Active now',
   },
@@ -137,7 +137,7 @@ const mockStudyGroups: StudyGroup[] = [
     category: 'Web Development',
     members: 892,
     thumbnail: 'https://images.pexels.com/photos/11035380/pexels-photo-11035380.jpeg?auto=compress&cs=tinysrgb&w=200',
-    description: 'Share React projects, get code reviews, and learn best practices together.',
+    description: 'Share React projects, get code reviews, and learn together.', // Shortened
     isJoined: false,
     activity: '12 min ago',
   },
@@ -147,7 +147,7 @@ const mockStudyGroups: StudyGroup[] = [
     category: 'Data Science',
     members: 634,
     thumbnail: 'https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=200',
-    description: 'Intensive learning group for data science fundamentals and advanced techniques.',
+    description: 'Intensive group for data science fundamentals & advanced techniques.', // Shortened
     isJoined: true,
     activity: '1h ago',
   },
@@ -269,11 +269,16 @@ export default function CommunityScreen() {
                 )}
 
                 <View style={styles.postTags}>
-                  {post.tags.map((tag, index) => (
+                  {post.tags.slice(0, 2).map((tag, index) => (
                     <View key={index} style={styles.tag}>
                       <Text style={styles.tagText}>#{tag}</Text>
                     </View>
                   ))}
+                  {post.tags.length > 2 && (
+                    <View style={styles.tag}>
+                      <Text style={styles.tagText}>+{post.tags.length - 2} more</Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.postActions}>
@@ -282,23 +287,21 @@ export default function CommunityScreen() {
                     onPress={() => toggleLike(post.id)}
                   >
                     <Heart 
-                      size={20} 
-                      color={likedPosts.has(post.id) ? "#EF4444" : "#CCCCCC"} 
+                      size={18} // Slightly smaller icon
+                      color={likedPosts.has(post.id) ? "#EF4444" : "#666666"} // Adjusted color for unliked
                       fill={likedPosts.has(post.id) ? "#EF4444" : "transparent"}
                     />
-                    <Text style={[styles.actionText, likedPosts.has(post.id) && styles.likedText]}>
-                      {post.likes + (likedPosts.has(post.id) && !post.isLiked ? 1 : 0)}
-                    </Text>
+                    {/* Text removed */}
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.actionButton}>
-                    <MessageCircle size={20} color="#CCCCCC" />
-                    <Text style={styles.actionText}>{post.comments}</Text>
+                    <MessageCircle size={18} color="#666666" />
+                    {/* Text removed */}
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.actionButton}>
-                    <Share size={20} color="#CCCCCC" />
-                    <Text style={styles.actionText}>{post.shares}</Text>
+                    <Share size={18} color="#666666" />
+                    {/* Text removed */}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -371,10 +374,8 @@ export default function CommunityScreen() {
               onPress={handleCreatePost}
               disabled={!newPostContent.trim()}
             >
-              <Send size={20} color={newPostContent.trim() ? "#FFFFFF" : "#666666"} />
-              <Text style={[styles.postButtonText, !newPostContent.trim() && styles.postButtonTextDisabled]}>
-                Post
-              </Text>
+              <Send size={22} color={newPostContent.trim() ? "#FFFFFF" : "rgba(102, 102, 102, 0.8)"} />
+              {/* Text "Post" removed for a simpler, icon-only button */}
             </TouchableOpacity>
           </View>
         </View>
@@ -588,20 +589,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 14, // Kept for potential future use but not active with current changes
     fontFamily: 'Inter-Medium',
     color: '#CCCCCC',
     marginLeft: 6,
   },
-  likedText: {
+  likedText: { // Kept for potential future use
     color: '#EF4444',
   },
   groupsContainer: {
     paddingVertical: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 18, // Standardized size
+    fontFamily: 'Poppins-SemiBold', // Standardized font
     color: '#FFFFFF',
     marginBottom: 20,
   },
@@ -663,7 +664,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#CCCCCC',
     marginBottom: 8,
-    lineHeight: 20,
+    lineHeight: 20, // Max 2 lines approx with this lineHeight
+    maxHeight: 40, // Explicitly limit height for ~2 lines
+    overflow: 'hidden', // Hide overflowing text
   },
   groupMeta: {
     flexDirection: 'row',
@@ -733,19 +736,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#8B5CF6',
-    paddingVertical: 12,
-    borderRadius: 25,
+    paddingVertical: 14, // Slightly increased padding for better touch target
+    borderRadius: 28, // Adjusted for new padding
   },
   postButtonDisabled: {
-    backgroundColor: '#333333',
+    backgroundColor: 'rgba(51, 51, 51, 0.7)', // More visually distinct disabled state
   },
   postButtonText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-SemiBold',
     fontSize: 16,
-    marginLeft: 8,
+    // marginLeft: 8, // No longer needed as text is removed
   },
   postButtonTextDisabled: {
-    color: '#666666',
+    color: 'rgba(102, 102, 102, 0.8)',
   },
 });

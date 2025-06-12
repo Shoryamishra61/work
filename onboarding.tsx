@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   domainDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#999999',
+    color: '#B0B0B0', // Slightly brighter for better readability
     lineHeight: 16,
   },
   selectedBadge: {

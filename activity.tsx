@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   activityItem: {
     flexDirection: 'row',
-    paddingVertical: 16,
+    paddingVertical: 12, // Reduced padding
     paddingHorizontal: 16,
     marginBottom: 12,
     borderRadius: 16,
@@ -393,21 +393,21 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   userAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40, // Reduced size
+    height: 40, // Reduced size
+    borderRadius: 20, // Adjusted border radius
   },
   activityIcon: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#000000',
+    width: 20, // Reduced size
+    height: 20, // Reduced size
+    borderRadius: 10, // Adjusted border radius
+    backgroundColor: '#000000', // Keep background for icon visibility
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 0, // Ensure border is removed
     borderColor: '#1a1a1a',
   },
   activityContent: {
@@ -417,10 +417,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   activityMessage: {
-    fontSize: 16,
+    fontSize: 14, // Reduced font size
     fontFamily: 'Inter-Regular',
     color: '#FFFFFF',
-    lineHeight: 22,
+    lineHeight: 20, // Adjusted line height
   },
   userName: {
     fontFamily: 'Inter-SemiBold',
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     color: '#CCCCCC',
   },
   activityTimestamp: {
-    fontSize: 14,
+    fontSize: 12, // Reduced font size
     fontFamily: 'Inter-Regular',
     color: '#666666',
     marginTop: 4,
@@ -439,21 +439,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 12, // Standardized radius
+    padding: 8,
   },
   contentThumbnail: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 36, // Reduced size
+    height: 36, // Reduced size
+    borderRadius: 6, // Adjusted radius
+    marginRight: 10, // Reduced margin
   },
   contentTitle: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
     fontFamily: 'Inter-Medium',
     color: '#FFFFFF',
-    lineHeight: 18,
+    lineHeight: 17, // Adjusted line height
   },
   unreadIndicator: {
     width: 8,

@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Poppins-SemiBold', // Standardized font
     color: '#FFFFFF',
     marginBottom: 8,
   },
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   mediaUploadGradient: {
-    paddingVertical: 40,
+    paddingVertical: 30, // Reduced padding
     paddingHorizontal: 40,
     alignItems: 'center',
     borderRadius: 20,
@@ -494,13 +494,13 @@ const styles = StyleSheet.create({
   mediaUploadText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-SemiBold',
-    fontSize: 18,
+    fontSize: 16, // Reduced font size
     marginTop: 12,
   },
   mediaUploadSubtext: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontFamily: 'Inter-Regular',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
     marginTop: 4,
   },
   uploadOptions: {
@@ -511,9 +511,9 @@ const styles = StyleSheet.create({
   uploadOption: {
     alignItems: 'center',
     backgroundColor: '#1a1a1a',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12, // Standardized radius
     borderWidth: 1,
     borderColor: '#333333',
     minWidth: 120,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   uploadOptionText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
     marginTop: 8,
   },
   selectedMediaContainer: {
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   mediaInfoText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
   },
   inputContainer: {
     marginBottom: 20,
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
-    fontSize: 16,
+    fontSize: 14, // Reduced font size
     marginBottom: 8,
   },
   textInput: {
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   characterCount: {
     color: '#666666',
     fontFamily: 'Inter-Regular',
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
     textAlign: 'right',
     marginTop: 4,
   },
@@ -608,8 +608,8 @@ const styles = StyleSheet.create({
   categoryItem: {
     width: '48%',
     backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12, // Standardized radius
+    padding: 12,
     alignItems: 'center',
     marginBottom: 12,
     borderWidth: 2,
@@ -620,13 +620,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   categoryIcon: {
-    fontSize: 24,
+    fontSize: 20, // Reduced icon size
     marginBottom: 8,
   },
   categoryName: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
   },
   categoryCheck: {
     position: 'absolute',
@@ -645,8 +645,8 @@ const styles = StyleSheet.create({
   difficultyItem: {
     flex: 1,
     backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12, // Standardized radius
+    padding: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 2,
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   difficultyName: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
   },
   difficultyCheck: {
     position: 'absolute',
@@ -685,8 +685,8 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFFFFF',
     fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    paddingVertical: 12,
+    fontSize: 14, // Reduced font size
+    paddingVertical: 10, // Adjusted padding
     marginLeft: 8,
   },
   addTagButton: {
@@ -711,20 +711,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#8B5CF6',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 12, // Standardized radius
     marginRight: 8,
     marginBottom: 8,
   },
   tagText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
     marginRight: 6,
   },
   tagCount: {
     color: '#666666',
     fontFamily: 'Inter-Regular',
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
     textAlign: 'right',
   },
   premiumToggle: {
@@ -749,13 +749,13 @@ const styles = StyleSheet.create({
   premiumToggleTitle: {
     color: '#FFFFFF',
     fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
+    fontSize: 15, // Reduced font size
     marginBottom: 2,
   },
   premiumToggleSubtitle: {
     color: '#CCCCCC',
     fontFamily: 'Inter-Regular',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
   },
   toggleSwitch: {
     width: 50,
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Bold',
-    fontSize: 18,
+    fontSize: 16, // Reduced font size
     marginLeft: 8,
   },
   uploadingContainer: {
@@ -830,18 +830,18 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   successTitle: {
-    fontSize: 28,
+    fontSize: 24, // Reduced font size
     fontFamily: 'Poppins-Bold',
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 12,
   },
   successSubtitle: {
-    fontSize: 16,
+    fontSize: 14, // Reduced font size
     fontFamily: 'Inter-Regular',
     color: '#CCCCCC',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22, // Adjusted line height
     marginBottom: 40,
   },
   successStats: {
@@ -853,11 +853,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successStatNumber: {
-    fontSize: 32,
+    fontSize: 28, // Reduced font size
     marginBottom: 8,
   },
   successStatLabel: {
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
     fontFamily: 'Inter-Medium',
     color: '#CCCCCC',
   },

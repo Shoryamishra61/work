@@ -406,10 +406,10 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   categoryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 12,
-    borderRadius: 20,
+    paddingHorizontal: 12, // Reduced padding
+    paddingVertical: 6, // Reduced padding
+    marginRight: 10, // Slightly reduced margin
+    borderRadius: 18, // Adjusted radius
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
     borderColor: '#333333',
@@ -432,8 +432,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 18, // Standardized size
+    fontFamily: 'Poppins-SemiBold', // Standardized font
     color: '#FFFFFF',
     marginLeft: 8,
   },
@@ -496,14 +496,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 5, // Reduced padding
+    paddingVertical: 1, // Reduced padding
+    borderRadius: 6, // Adjusted radius
   },
   difficultyText: {
     color: '#FFFFFF',
     fontFamily: 'Inter-Bold',
-    fontSize: 10,
+    fontSize: 9, // Reduced font size
   },
   videoInfo: {
     paddingHorizontal: 4,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   videoCreator: {
-    color: '#CCCCCC',
+    color: '#A0A0A0', // Lighter color
     fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginBottom: 4,
@@ -526,12 +526,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   videoViews: {
-    color: '#666666',
+    color: '#888888', // Lighter color
     fontFamily: 'Inter-Regular',
     fontSize: 12,
   },
   videoCategory: {
-    color: '#666666',
+    color: '#888888', // Lighter color
     fontFamily: 'Inter-Regular',
     fontSize: 12,
     marginLeft: 4,
@@ -570,13 +570,13 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   creatorSpecialization: {
-    color: '#CCCCCC',
+    color: '#A0A0A0', // Lighter color
     fontFamily: 'Inter-Regular',
     fontSize: 14,
     marginBottom: 4,
   },
   creatorFollowers: {
-    color: '#666666',
+    color: '#888888', // Lighter color
     fontFamily: 'Inter-Regular',
     fontSize: 12,
   },
