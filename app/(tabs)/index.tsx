@@ -14,7 +14,9 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Play, Heart, MessageCircle, Share, BookOpen, Crown, Lock, Star, MoveHorizontal as MoreHorizontal, Volume2, VolumeX, X, Send, Pause, Filter, TrendingUp } from 'lucide-react-native';
+import { Play, Heart, MessageCircle, Share, BookOpen, Crown, Lock, Star, MoveHorizontal as MoreHorizontal, Volume2, VolumeX, X, Send, Pause, Filter, TrendingUp, Zap } from 'lucide-react-native'; // Added Zap
+import { theme } from '../theme'; // Import theme
+import QuizScreen from '../quiz'; // Import QuizScreen
 
 const { width, height } = Dimensions.get('window');
 
@@ -38,8 +40,11 @@ interface VideoContent {
   isLiked: boolean;
   isMuted: boolean;
   isPlaying: boolean;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  tags: string[];
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced'; // Already present, ensure it's used
+  tags: string[]; // Existing general tags, might be deprecated or used alongside subTopics
+  domain: string; // New field
+  subTopics: string[]; // New field
+  isCaptionExpanded?: boolean;
 }
 
 interface Comment {
@@ -73,7 +78,10 @@ const mockVideos: VideoContent[] = [
     isMuted: false,
     isPlaying: true,
     difficulty: 'Beginner',
-    tags: ['react', 'hooks', 'javascript'],
+    tags: ['react', 'hooks', 'javascript'], // Keep for now, or decide if subTopics replaces it
+    domain: 'Web Development',
+    subTopics: ['React', 'JavaScript', 'Frontend'],
+    isCaptionExpanded: false,
   },
   {
     id: '2',
@@ -97,6 +105,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Beginner',
     tags: ['ai', 'neural-networks', 'machine-learning'],
+    domain: 'AI & ML',
+    subTopics: ['Neural Networks', 'Deep Learning', 'TensorFlow'],
+    isCaptionExpanded: false,
   },
   {
     id: '3',
@@ -120,6 +131,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Intermediate',
     tags: ['python', 'data-analysis', 'pandas'],
+    domain: 'Data Science',
+    subTopics: ['Python', 'Pandas', 'Matplotlib', 'Data Visualization'],
+    isCaptionExpanded: false,
   },
   {
     id: '4',
@@ -143,6 +157,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Advanced',
     tags: ['javascript', 'es6', 'modern-js'],
+    domain: 'Web Development',
+    subTopics: ['JavaScript', 'ES6+', 'Performance', 'Node.js'],
+    isCaptionExpanded: false,
   },
   {
     id: '5',
@@ -166,6 +183,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Beginner',
     tags: ['machine-learning', 'ai', 'algorithms'],
+    domain: 'AI & ML',
+    subTopics: ['Supervised Learning', 'Algorithms', 'Scikit-learn'],
+    isCaptionExpanded: false,
   },
   {
     id: '6',
@@ -189,6 +209,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Intermediate',
     tags: ['css', 'grid', 'layout'],
+    domain: 'Web Development',
+    subTopics: ['CSS', 'Responsive Design', 'Flexbox'],
+    isCaptionExpanded: false,
   },
   {
     id: '7',
@@ -212,6 +235,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Advanced',
     tags: ['d3js', 'data-visualization', 'javascript'],
+    domain: 'Data Science',
+    subTopics: ['D3.js', 'Interactive Viz', 'JavaScript'],
+    isCaptionExpanded: false,
   },
   {
     id: '8',
@@ -235,6 +261,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Intermediate',
     tags: ['docker', 'devops', 'containers'],
+    domain: 'DevOps',
+    subTopics: ['Docker', 'CI/CD', 'Kubernetes'],
+    isCaptionExpanded: false,
   },
   {
     id: '9',
@@ -258,6 +287,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Advanced',
     tags: ['react', 'advanced', 'patterns'],
+    domain: 'Web Development',
+    subTopics: ['React Patterns', 'State Management', 'Performance Opt.'],
+    isCaptionExpanded: false,
   },
   {
     id: '10',
@@ -281,6 +313,9 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Intermediate',
     tags: ['database', 'sql', 'design'],
+    domain: 'Backend',
+    subTopics: ['SQL', 'Database Design', 'NoSQL'],
+    isCaptionExpanded: false,
   },
 ];
 
@@ -322,7 +357,48 @@ export default function HomeScreen() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
-  const [fadeAnim] = useState(new Animated.Value(1));
+  // const [fadeAnim] = useState(new Animated.Value(1));
+
+  // State for quiz countdown and overlay
+  const [showQuizCountdown, setShowQuizCountdown] = useState(false);
+  const [countdownValue, setCountdownValue] = useState(5);
+  const [showQuizOverlay, setShowQuizOverlay] = useState(false);
+  const [activeQuizContent, setActiveQuizContent] = useState<Question[] | null>(null); // Placeholder
+
+  useEffect(() => {
+    let countdownTimer: NodeJS.Timeout;
+    if (showQuizCountdown && countdownValue > 0) {
+      countdownTimer = setTimeout(() => {
+        setCountdownValue(prev => prev - 1);
+      }, 1000);
+    } else if (showQuizCountdown && countdownValue === 0) {
+      setShowQuizCountdown(false);
+      setShowQuizOverlay(true); // Show quiz overlay when countdown finishes
+    }
+    return () => clearTimeout(countdownTimer);
+  }, [showQuizCountdown, countdownValue]);
+
+  const handleStartMidVideoQuiz = () => {
+    // setActiveQuizContent(mockQuestionsFromQuizFile); // Conceptually load quiz
+    setCountdownValue(5); // Reset countdown
+    setShowQuizCountdown(true);
+    setShowQuizOverlay(false); // Ensure quiz overlay is hidden initially
+  };
+
+  const handleCloseQuizOverlay = () => {
+    setShowQuizOverlay(false);
+    // Potentially reset quiz related states if needed, or QuizScreen handles its own reset
+  };
+
+  const toggleCaptionExpansion = (videoId: string) => {
+    setVideos(prevVideos =>
+      prevVideos.map(video =>
+        video.id === videoId
+          ? { ...video, isCaptionExpanded: !video.isCaptionExpanded }
+          : video
+      )
+    );
+  };
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -521,86 +597,123 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Content Info - Left Side */}
-            <View style={styles.contentInfo}>
-              <View style={styles.creatorInfo}>
-                <Image source={{ uri: video.creator.avatar }} style={styles.creatorAvatar} />
-                <View style={styles.creatorDetails}>
-                  <View style={styles.creatorNameContainer}>
-                    <Text style={styles.creatorName}>{video.creator.name}</Text>
-                    {video.creator.verified && (
-                      <Star size={16} color="#8B5CF6" fill="#8B5CF6" />
-                    )}
-                  </View>
-                  <Text style={styles.videoCategory}>{video.category}</Text>
-                </View>
-                <TouchableOpacity style={styles.followButton}>
-                  <Text style={styles.followButtonText}>Follow</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.videoTitle}>{video.title}</Text>
-              <Text style={styles.videoDescription} numberOfLines={2}>
-                {video.description}
-              </Text>
-
-              {/* Tags */}
-              <View style={styles.tagsContainer}>
-                {video.tags.map((tag, tagIndex) => (
-                  <View key={tagIndex} style={styles.tag}>
-                    <Text style={styles.tagText}>#{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Action Buttons - Right Side */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleLike(video.id)}
-              >
-                <Heart 
-                  size={32} 
-                  color={video.isLiked ? "#FF3040" : "#FFFFFF"} 
-                  fill={video.isLiked ? "#FF3040" : "transparent"}
-                />
-                <Text style={[styles.actionText, video.isLiked && styles.likedText]}>
-                  {formatNumber(video.likes)}
+            {/* New Bottom UI Structure */}
+            <View style={styles.bottomOverlayContainer}>
+              {/* Caption Area */}
+              <View style={styles.captionContainer}>
+                <Text
+                  style={styles.creatorNameBottom}
+                  onPress={() => {/* Navigate to creator profile */}}
+                >
+                  @{video.creator.name}
+                  {video.creator.verified && <Star size={14} color={theme.colors.primary} fill={theme.colors.primary} style={{marginLeft: theme.spacing.space_xs}}/>}
                 </Text>
-              </TouchableOpacity>
+                {/* Domain Tag Display */}
+                <View style={styles.domainAndDifficultyContainer}>
+                  <Text style={styles.domainTagText}>{video.domain}</Text>
+                  {/* Difficulty is already shown on the video overlay, but if needed here:
+                   <Text style={styles.difficultyTagText}>{video.difficulty}</Text>
+                  */}
+                </View>
+                <Text
+                  style={styles.captionText}
+                  numberOfLines={video.isCaptionExpanded ? undefined : 2}
+                >
+                  {video.description}
+                </Text>
+                {video.description.length > 100 && ( // Simple heuristic for "read more"
+                  <TouchableOpacity onPress={() => toggleCaptionExpansion(video.id)}>
+                    <Text style={styles.readMoreText}>
+                      {video.isCaptionExpanded ? 'Read less' : 'Read more'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={handleComment}
-              >
-                <MessageCircle size={32} color="#FFFFFF" />
-                <Text style={styles.actionText}>{formatNumber(video.comments)}</Text>
-              </TouchableOpacity>
+              {/* Bottom Control Bar */}
+              <View style={styles.bottomBar}>
+                <TouchableOpacity
+                  style={styles.bottomBarButton}
+                  onPress={() => handleLike(video.id)}
+                >
+                  <Heart
+                    size={26}
+                    color={video.isLiked ? "#FF3040" : "#FFFFFF"}
+                    fill={video.isLiked ? "#FF3040" : "transparent"}
+                  />
+                  <Text style={styles.bottomBarText}>{formatNumber(video.likes)}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleShare(video)}
-              >
-                <Share size={32} color="#FFFFFF" />
-                <Text style={styles.actionText}>{formatNumber(video.shares)}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.bottomBarButton}
+                  onPress={handleComment} // Opens the existing comments modal
+                >
+                  <MessageCircle size={26} color="#FFFFFF" />
+                  <Text style={styles.bottomBarText}>{formatNumber(video.comments)}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleSave(video.id)}
-              >
-                <BookOpen size={32} color="#FFFFFF" />
-                <Text style={styles.actionText}>Save</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.bottomBarButton}
+                  onPress={() => handleShare(video)}
+                >
+                  <Share size={26} color="#FFFFFF" />
+                  <Text style={styles.bottomBarText}>{formatNumber(video.shares)}</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton}>
-                <MoreHorizontal size={32} color="#FFFFFF" />
-              </TouchableOpacity>
+                {/* Display Sub-Topics - simplified for this bar */}
+                <View style={styles.subTopicsInBar}>
+                  {video.subTopics.slice(0, 1).map((subTopic, idx) => ( // Show only first subtopic
+                    <View key={idx} style={styles.subTopicBadge}>
+                      <Text style={styles.subTopicBadgeText}>{subTopic}</Text>
+                    </View>
+                  ))}
+                  {video.subTopics.length > 1 && ( // If more than one, show "+N"
+                     <View style={styles.subTopicBadge}>
+                        <Text style={styles.subTopicBadgeText}>+{video.subTopics.length -1}</Text>
+                     </View>
+                  )}
+                </View>
+
+                 <TouchableOpacity
+                    style={styles.bottomBarButton}
+                    onPress={() => handleSave(video.id)}
+                  >
+                    <BookOpen size={26} color={theme.colors.textPrimary} />
+                     {/* Removed text "Save" to save space if needed, or keep it small */}
+                  </TouchableOpacity>
+
+                {/* Temp button to trigger quiz countdown - MOVED to avoid clutter, or integrate better */}
+                {/* <TouchableOpacity style={styles.bottomBarButton} onPress={handleStartMidVideoQuiz}>
+                   <Zap size={22} color={theme.colors.accent} />
+                   <Text style={[styles.bottomBarText, {color: theme.colors.accent, marginLeft: 4}]}>Quiz!</Text>
+                </TouchableOpacity> */}
+              </View>
             </View>
+            {/* End of New Bottom UI Structure */}
           </View>
         ))}
       </ScrollView>
+
+      {/* Quiz Countdown Overlay */}
+      {showQuizCountdown && (
+        <View style={styles.countdownOverlay}>
+          <Text style={styles.countdownText}>Quiz starting in {countdownValue}...</Text>
+        </View>
+      )}
+
+      {/* Quiz Modal/Overlay */}
+      {showQuizOverlay && (
+         <Modal
+            animationType="slide"
+            transparent={true}
+            visible={showQuizOverlay}
+            onRequestClose={handleCloseQuizOverlay}
+          >
+            {/* QuizScreen is rendered here, ensure it's styled for overlay */}
+            {/* It will take mockQuestions from its own file for now */}
+            <QuizScreen isOverlayMode={true} onClose={handleCloseQuizOverlay} />
+          </Modal>
+      )}
 
       {/* Filters Modal */}
       <Modal
@@ -808,27 +921,28 @@ function getDifficultyColor(difficulty: string) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.backgroundMain,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-    backgroundColor: '#000000',
+    paddingHorizontal: theme.spacing.space_xl,
+    paddingTop: theme.spacing.space_xl,
+    paddingBottom: theme.spacing.space_sm,
+    backgroundColor: theme.colors.backgroundMain,
   },
   headerTitle: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.xxl,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
   },
   filterButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1a1a1a',
+    borderRadius: theme.radii.radius_full,
+    backgroundColor: theme.colors.backgroundElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -856,82 +970,150 @@ const styles = StyleSheet.create({
   },
   premiumBadge: {
     position: 'absolute',
-    top: 60,
-    right: 20,
+    top: theme.spacing.space_lg,
+    right: theme.spacing.space_lg,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: theme.spacing.space_sm,
+    paddingVertical: theme.spacing.space_xs,
+    borderRadius: theme.radii.radius_full,
   },
   premiumText: {
-    color: '#FFD700',
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
-    marginLeft: 4,
+    color: theme.colors.accent,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xs,
+    marginLeft: theme.spacing.space_xs,
   },
   muteButton: {
     position: 'absolute',
-    top: 60,
-    left: 20,
+    top: theme.spacing.space_lg,
+    left: theme.spacing.space_lg,
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: theme.radii.radius_full,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   durationBadge: {
     position: 'absolute',
-    bottom: 200,
-    right: 20,
+    bottom: theme.spacing.space_lg + 60 + 70, // Approx above bottom bar + caption
+    right: theme.spacing.space_lg,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: theme.spacing.space_sm,
+    paddingVertical: theme.spacing.space_xs,
+    borderRadius: theme.radii.radius_md,
   },
   durationText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    fontSize: theme.typography.fontSizes.xs,
   },
   playingIndicator: {
     position: 'absolute',
-    top: 120,
-    left: 20,
-    backgroundColor: 'rgba(16, 185, 129, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
+    top: height * 0.2,
+    left: theme.spacing.space_lg,
+    backgroundColor: theme.colors.success + 'E6',
+    paddingHorizontal: theme.spacing.space_md,
+    paddingVertical: theme.spacing.space_sm,
+    borderRadius: theme.radii.radius_lg,
   },
   playingText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.sm,
   },
   difficultyBadge: {
     position: 'absolute',
-    top: 120,
-    right: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
+    bottom: theme.spacing.space_lg + 60 + 70, // Approx above bottom bar + caption
+    left: theme.spacing.space_lg,
+    paddingHorizontal: theme.spacing.space_md,
+    paddingVertical: theme.spacing.space_sm,
+    borderRadius: theme.radii.radius_lg,
   },
   difficultyText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xs,
   },
-  contentInfo: {
+  // Existing contentInfo and actionButtons are replaced by bottomOverlayContainer
+  // Removed styles: contentInfo, creatorInfo, creatorAvatar, creatorDetails,
+  // creatorNameContainer, videoCategory, followButton, videoTitle,
+  // videoDescription (old one), tagsContainer (old one), tag (old one), tagText (old one),
+  // actionButtons, actionButton, actionText, likedText
+
+  // Styles for New Bottom UI
+  bottomOverlayContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
-    right: 100,
-    padding: 20,
-    paddingBottom: 120,
+    right: 0,
+    paddingBottom: theme.spacing.space_sm,
   },
-  creatorInfo: {
+  captionContainer: {
+    paddingHorizontal: theme.spacing.space_lg,
+    paddingBottom: theme.spacing.space_sm,
+  },
+  creatorNameBottom: {
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.md,
+    marginBottom: theme.spacing.space_xs,
+  },
+  captionText: {
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.sm,
+    lineHeight: theme.typography.fontSizes.sm * 1.4,
+  },
+  readMoreText: {
+    color: theme.colors.textMuted,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.sm,
+    marginTop: theme.spacing.space_xs,
+  },
+  bottomBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    height: 55,
+    paddingHorizontal: theme.spacing.space_sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border + '4D', // Lighter border, more subtle
+  },
+  bottomBarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.space_sm,
+  },
+  bottomBarText: {
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    fontSize: theme.typography.fontSizes.xs,
+    marginLeft: theme.spacing.space_xs,
+  },
+  bottomBarTagText: {
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.xs,
+    paddingHorizontal: theme.spacing.space_sm,
+    paddingVertical: theme.spacing.space_xs,
+    backgroundColor: theme.colors.primary + '33',
+    borderRadius: theme.radii.radius_sm,
+  },
+
+  // Old styles that might still be used or need cleanup:
+  creatorInfo: { // This might be reused for creator info within caption or elsewhere
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
@@ -999,34 +1181,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#8B5CF6',
   },
-  tagText: {
+  tagText: { // This style might be from the old layout, new one is bottomBarTagText
     color: '#8B5CF6',
     fontFamily: 'Inter-Medium',
     fontSize: 12,
   },
-  actionButtons: {
-    position: 'absolute',
-    right: 20,
-    bottom: 150,
-    alignItems: 'center',
-  },
-  actionButton: {
-    alignItems: 'center',
-    marginBottom: 24,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-  },
-  actionText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  likedText: {
-    color: '#FF3040',
-  },
+  // ActionButtons and related styles (actionButton, actionText, likedText) are removed
+  // as they are incorporated into the new bottomBar or removed for simplification.
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',

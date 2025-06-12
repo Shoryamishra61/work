@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ChevronRight, BookOpen, Brain, Code, TrendingUp, Palette, Wrench, Smartphone, ChartBar as BarChart3 } from 'lucide-react-native';
+import { theme } from './theme'; // Import theme
 
 const { width, height } = Dimensions.get('window');
 
@@ -19,18 +20,18 @@ interface Domain {
   name: string;
   icon: any;
   color: string;
-  description: string;
+  // description: string; // Removed as per new UI for Screen 2
 }
 
 const domains: Domain[] = [
-  { id: 'ai-ml', name: 'AI & Machine Learning', icon: Brain, color: '#8B5CF6', description: 'Neural networks, deep learning, AI algorithms' },
-  { id: 'web-dev', name: 'Web Development', icon: Code, color: '#3B82F6', description: 'React, JavaScript, HTML/CSS, frameworks' },
-  { id: 'mobile-dev', name: 'Mobile Development', icon: Smartphone, color: '#10B981', description: 'React Native, iOS, Android development' },
-  { id: 'data-science', name: 'Data Science', icon: BarChart3, color: '#F59E0B', description: 'Python, analytics, visualization, statistics' },
-  { id: 'design', name: 'UI/UX Design', icon: Palette, color: '#EF4444', description: 'Figma, design systems, user experience' },
-  { id: 'devops', name: 'DevOps & Cloud', icon: Wrench, color: '#6B7280', description: 'AWS, Docker, CI/CD, infrastructure' },
-  { id: 'business', name: 'Business & Finance', icon: TrendingUp, color: '#EC4899', description: 'Entrepreneurship, investing, marketing' },
-  { id: 'general', name: 'General Tech', icon: BookOpen, color: '#14B8A6', description: 'Programming fundamentals, career advice' },
+  { id: 'ai-ml', name: 'AI & Machine Learning', icon: Brain, color: '#8B5CF6' },
+  { id: 'web-dev', name: 'Web Development', icon: Code, color: '#3B82F6' },
+  { id: 'mobile-dev', name: 'Mobile Development', icon: Smartphone, color: '#10B981' },
+  { id: 'data-science', name: 'Data Science', icon: BarChart3, color: '#F59E0B' },
+  { id: 'design', name: 'UI/UX Design', icon: Palette, color: '#EF4444' },
+  { id: 'devops', name: 'DevOps & Cloud', icon: Wrench, color: '#6B7280' },
+  { id: 'business', name: 'Business & Finance', icon: TrendingUp, color: '#EC4899' },
+  { id: 'general', name: 'General Tech', icon: BookOpen, color: '#14B8A6' },
 ];
 
 const difficultyLevels = [
@@ -39,8 +40,18 @@ const difficultyLevels = [
   { id: 'advanced', name: 'Advanced', description: 'Expert level' },
 ];
 
-export default function OnboardingScreen() {
-  const [currentStep, setCurrentStep] = useState(0);
+interface OnboardingScreenProps {
+  initialStep?: number;
+  onCompleteRoute?: string;
+  isUpdateFlow?: boolean;
+}
+
+export default function OnboardingScreen({
+  initialStep = 0,
+  onCompleteRoute = '/(tabs)',
+  isUpdateFlow = false
+}: OnboardingScreenProps) {
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
 
@@ -58,8 +69,10 @@ export default function OnboardingScreen() {
     } else if (currentStep === 1) {
       setCurrentStep(2);
     } else {
-      // Save preferences and navigate to main app
-      router.replace('/(tabs)');
+      // Save preferences and navigate
+      // In a real app, here you would save selectedDomains and selectedDifficulty
+      // For example: await saveUserPreferences({ domains: selectedDomains, difficulty: selectedDifficulty });
+      router.replace(onCompleteRoute);
     }
   };
 
@@ -71,34 +84,17 @@ export default function OnboardingScreen() {
   };
 
   const renderWelcomeStep = () => (
-    <View style={styles.stepContainer}>
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.welcomeGradient}
-      >
-        <Text style={styles.welcomeTitle}>Welcome to Edugram</Text>
-        <Text style={styles.welcomeSubtitle}>
-          Your personalized learning universe
-        </Text>
-        <Text style={styles.welcomeDescription}>
-          Short videos & articles, tailored to what you want to learn
-        </Text>
-        
-        <View style={styles.featuresList}>
-          <View style={styles.featureItem}>
-            <Brain size={24} color="#FFFFFF" />
-            <Text style={styles.featureText}>AI-powered recommendations</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <BookOpen size={24} color="#FFFFFF" />
-            <Text style={styles.featureText}>Bite-sized learning content</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <TrendingUp size={24} color="#FFFFFF" />
-            <Text style={styles.featureText}>Track your progress</Text>
-          </View>
-        </View>
-      </LinearGradient>
+    <View style={[styles.stepContainer, styles.welcomeStepContainer]}>
+      {/* Visuals: Placeholder for a dynamic graphic/animation */}
+      <View style={styles.welcomeVisualPlaceholder}>
+        <Brain size={width * 0.3} color="#8B5CF6" strokeWidth={1.5} />
+      </View>
+
+      <Text style={styles.welcomeTitle}>Edugram: Your Personalized Learning Universe.</Text>
+      <Text style={styles.welcomeSubtitle}>
+        Short videos & blogs, tailored to what you want to learn.
+      </Text>
+      {/* CTA is handled by the global nextButton in this structure */}
     </View>
   );
 
@@ -106,7 +102,7 @@ export default function OnboardingScreen() {
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Pick Your Learning Paths</Text>
       <Text style={styles.stepSubtitle}>
-        Select 3 or more interests to personalize your feed
+        Select 3 or more interests to personalize your feed. You can always change these later.
       </Text>
       
       <ScrollView style={styles.domainsContainer} showsVerticalScrollIndicator={false}>
@@ -124,15 +120,13 @@ export default function OnboardingScreen() {
                 ]}
                 onPress={() => handleDomainToggle(domain.id)}
               >
-                <View style={[styles.domainIcon, { backgroundColor: domain.color }]}>
-                  <IconComponent size={24} color="#FFFFFF" />
+                <View style={[styles.domainIconContainer, { backgroundColor: `${domain.color}30` }]}>
+                  <IconComponent size={36} color={domain.color} />
                 </View>
                 <Text style={[styles.domainName, isSelected && { color: domain.color }]}>
                   {domain.name}
                 </Text>
-                <Text style={styles.domainDescription}>
-                  {domain.description}
-                </Text>
+                {/* Domain description removed from card display for this step */}
                 {isSelected && (
                   <View style={[styles.selectedBadge, { backgroundColor: domain.color }]}>
                     <Text style={styles.selectedBadgeText}>✓</Text>
@@ -145,16 +139,18 @@ export default function OnboardingScreen() {
       </ScrollView>
       
       <Text style={styles.selectionCount}>
-        {selectedDomains.length}/8 selected (minimum 3 required)
+        {selectedDomains.length} selected (minimum 3 required)
       </Text>
     </View>
   );
 
-  const renderDifficultyStep = () => (
+  // Placeholder for Screen 3: Refine Interests
+  // For now, difficulty step will act as a simplified version or placeholder for screen 3
+  const renderRefineStep = () => ( // Renamed for clarity
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>What's Your Level?</Text>
       <Text style={styles.stepSubtitle}>
-        This helps us show you the right content difficulty
+        This helps us show you the right content difficulty. (This step will be expanded for sub-topics later)
       </Text>
       
       <View style={styles.difficultyContainer}>
@@ -203,7 +199,7 @@ export default function OnboardingScreen() {
 
       {currentStep === 0 && renderWelcomeStep()}
       {currentStep === 1 && renderDomainStep()}
-      {currentStep === 2 && renderDifficultyStep()}
+      {currentStep === 2 && renderRefineStep()} {/* Changed to renderRefineStep */}
 
       <View style={styles.bottomContainer}>
         <TouchableOpacity
@@ -214,16 +210,20 @@ export default function OnboardingScreen() {
           onPress={handleNext}
           disabled={!canProceed()}
         >
-          <Text style={[
+          <Text style={[ // Adjusted CTA text logic
             styles.nextButtonText,
             !canProceed() && styles.nextButtonTextDisabled
           ]}>
-            {currentStep === 2 ? 'Start Learning' : 'Continue'}
+            {currentStep === 0 && !isUpdateFlow ? 'Start Your Learning Journey'
+             : currentStep === 1 ? (isUpdateFlow ? 'Next: Confirm Level' : 'Next: Refine Your Interests')
+             : (isUpdateFlow ? 'Save My Interests' : 'Finish Setup')}
           </Text>
-          <ChevronRight 
-            size={20} 
-            color={canProceed() ? "#FFFFFF" : "#999999"} 
-          />
+          {(currentStep !== 0 || isUpdateFlow) && currentStep < 2 && ( // Show chevron if not first step of initial onboarding, and not last step
+            <ChevronRight
+              size={20}
+              color={canProceed() ? "#FFFFFF" : "#999999"}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -260,51 +260,39 @@ const styles = StyleSheet.create({
   stepContainer: {
     flex: 1,
     paddingHorizontal: 20,
+    justifyContent: 'center', // Center content for welcome and difficulty
   },
-  welcomeGradient: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 40,
+  welcomeStepContainer: { // Specific styling for welcome step vertical alignment
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 20,
+    paddingBottom: height * 0.1, // Push content up a bit from the button
+  },
+  welcomeVisualPlaceholder: {
+    width: width * 0.4,
+    height: width * 0.4,
+    borderRadius: width * 0.2,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)', // Light purple
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
   },
   welcomeTitle: {
-    fontSize: 32,
+    fontSize: 30, // Adjusted size
     fontFamily: 'Poppins-Bold',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 16, // Increased margin
   },
   welcomeSubtitle: {
-    fontSize: 20,
+    fontSize: 18, // Adjusted size
     fontFamily: 'Poppins-Medium',
-    color: '#FFFFFF',
+    color: '#E0E0E0', // Slightly less bright than pure white
     textAlign: 'center',
-    marginBottom: 8,
+    lineHeight: 26, // Added for readability
+    paddingHorizontal: 20, // Ensure it doesn't get too wide
+    marginBottom: 20, // Spacing before potential implicit button
   },
-  welcomeDescription: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#E5E7EB',
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 24,
-  },
-  featuresList: {
-    width: '100%',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  featureText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#FFFFFF',
-    marginLeft: 12,
-  },
+  // Removed welcomeDescription and featuresList styles as they are no longer used
   stepTitle: {
     fontSize: 28,
     fontFamily: 'Poppins-Bold',
@@ -338,11 +326,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#333333',
     position: 'relative',
+    alignItems: 'center', // Center content in the card
   },
-  domainIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  domainIconContainer: { // New container for icon with its own background
+    width: 64, // Larger icon area
+    height: 64,
+    borderRadius: 32, // half of width/height
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -352,13 +341,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     color: '#FFFFFF',
     marginBottom: 4,
+    textAlign: 'center', // Center domain name
   },
-  domainDescription: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#B0B0B0', // Slightly brighter for better readability
-    lineHeight: 16,
-  },
+  // domainDescription style removed as it's not displayed on the card
   selectedBadge: {
     position: 'absolute',
     top: 12,
@@ -415,28 +400,31 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   bottomContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 20,
+    paddingHorizontal: theme.spacing.space_xl,
+    paddingBottom: theme.spacing.space_xxxl, // Increased for more space from bottom edge
+    paddingTop: theme.spacing.space_xl,
+    backgroundColor: theme.colors.backgroundMain, // Ensure consistency if screen scrolls
   },
   nextButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 16,
-    borderRadius: 25,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.space_lg,
+    borderRadius: theme.radii.radius_full, // Make it fully rounded
   },
   nextButtonDisabled: {
-    backgroundColor: '#333333',
+    backgroundColor: theme.colors.backgroundElevated, // Use theme color for disabled state
   },
   nextButtonText: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    marginRight: 8,
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings, // Using Poppins for main CTA
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.white, // Ensure text is white for primary button
+    marginRight: theme.spacing.space_sm,
   },
+  // welcomeCtaText can be removed if nextButtonText is now fully themed and dynamic
   nextButtonTextDisabled: {
-    color: '#999999',
+    color: theme.colors.textDisabled, // Use theme color
   },
 });

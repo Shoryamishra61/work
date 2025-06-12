@@ -11,7 +11,9 @@ import {
   FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Settings, Share, MoveHorizontal as MoreHorizontal, Play, Heart, MessageCircle, Grid3x3 as Grid, List, Crown, Star, Users, Award, TrendingUp, BookOpen, Zap, Trophy, Target, Calendar } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Settings, Share, MoveHorizontal as MoreHorizontal, Play, Heart, MessageCircle, Grid3x3 as Grid, List, Crown, Star, Users, Award, TrendingUp, BookOpen, Zap, Trophy, Target, Calendar, ChevronRight } from 'lucide-react-native';
+import { theme } from '../theme'; // Import the theme
 
 interface UserVideo {
   id: string;
@@ -30,7 +32,8 @@ interface UserStats {
   videos: number;
   streak: number;
   totalWatchTime: string;
-  badges: number;
+  // badges: number; // Will be replaced by badges array length
+  badges: Badge[]; // Changed to array of Badge objects
 }
 
 interface Badge {
@@ -106,43 +109,53 @@ const userStats: UserStats = {
   videos: mockUserVideos.length,
   streak: 15,
   totalWatchTime: '45h 30m',
-  badges: 12,
+  // badges: 12, // This will now be derived from the length of the badges array
+  badges: [ // Populate with more descriptive badges
+    {
+      id: '1',
+      name: 'AI Novice Completion',
+      icon: '🎓',
+      description: 'Completed the "AI Fundamentals" course.',
+      earnedDate: '2024-03-10',
+      color: theme.colors.primary,
+    },
+    {
+      id: '2',
+      name: '5-Day Learning Streak',
+      icon: '🔥',
+      description: 'Learned for 5 days in a row!',
+      earnedDate: '2024-03-15',
+      color: theme.colors.accent,
+    },
+    {
+      id: '3',
+      name: 'Web Dev Starter',
+      icon: '💻',
+      description: 'Watched 10 videos in Web Development.',
+      earnedDate: '2024-03-18',
+      color: theme.colors.secondary,
+    },
+    {
+      id: '4',
+      name: 'First Community Post',
+      icon: '💬',
+      description: 'Shared your first post with the community.',
+      earnedDate: '2024-03-20',
+      color: '#3B82F6', // Example: a blue color from theme potential
+    },
+    {
+      id: '5',
+      name: 'Perfect Quiz Score',
+      icon: '🎯',
+      description: 'Achieved 100% on a quiz.',
+      earnedDate: '2024-03-22',
+      color: theme.colors.accent, // Using accent again
+    }
+  ],
 };
 
-const mockBadges: Badge[] = [
-  {
-    id: '1',
-    name: 'AI Explorer',
-    icon: '🤖',
-    description: 'Finished 5 AI/ML videos', // Shortened
-    earnedDate: '2024-01-15',
-    color: '#8B5CF6',
-  },
-  {
-    id: '2',
-    name: 'Learning Streak',
-    icon: '🔥',
-    description: 'Achieved a 15-day streak', // Shortened
-    earnedDate: '2024-01-20',
-    color: '#EF4444',
-  },
-  {
-    id: '3',
-    name: 'Code Master',
-    icon: '💻',
-    description: 'Completed 10 code videos', // Shortened
-    earnedDate: '2024-01-10',
-    color: '#10B981',
-  },
-  {
-    id: '4',
-    name: 'Community Helper',
-    icon: '🤝',
-    description: 'Helped 50+ members', // Shortened
-    earnedDate: '2024-01-05',
-    color: '#F59E0B',
-  },
-];
+// mockBadges constant can be removed if userStats.badges is the source of truth
+// const mockBadges: Badge[] = [ ... ];
 
 export default function ProfileScreen() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -254,7 +267,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.statItem}
-              onPress={() => setShowProgressModal(true)} // Videos is a primary stat
+              // onPress={() => setShowProgressModal(true)} // OLD TRIGGER - REMOVED
             >
               <Text style={styles.statNumber}>{userStats.videos}</Text>
               <Text style={styles.statLabel}>Videos</Text>
@@ -263,18 +276,18 @@ export default function ProfileScreen() {
 
           {/* Learning Progress */}
           <View style={styles.progressContainer}>
-            <View style={styles.progressItem}>
-              <Zap size={18} color="#EF4444" /> {/* Icon size reduced */}
+            <TouchableOpacity style={styles.progressItem} onPress={() => {/* Future: Navigate to streak details */}}>
+              <Zap size={18} color={theme.colors.error} />
               <Text style={styles.progressText}>{userStats.streak} day streak</Text>
-            </View>
-            <View style={styles.progressItem}>
-              <Clock size={18} color="#10B981" /> {/* Icon size reduced */}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.progressItem} onPress={() => {/* Future: Navigate to watch time details */}}>
+              <Clock size={18} color={theme.colors.success} />
               <Text style={styles.progressText}>{userStats.totalWatchTime} watched</Text>
-            </View>
-            <View style={styles.progressItem}>
-              <Award size={18} color="#F59E0B" /> {/* Icon size reduced */}
-              <Text style={styles.progressText}>{userStats.badges} badges earned</Text>
-            </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.progressItem} onPress={() => setShowProgressModal(true)}> {/* NEW TRIGGER */}
+              <Award size={18} color={theme.colors.accent} />
+              <Text style={styles.progressText}>{userStats.badges.length} badges earned</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Action Buttons */}
@@ -298,6 +311,18 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </LinearGradient>
+
+        {/* Manage Interests Button */}
+        <TouchableOpacity
+          style={styles.manageInterestsButton}
+          onPress={() => router.push('/update-interests')}
+        >
+          <View style={styles.manageInterestsIconContainer}>
+            <List size={20} color="#8B5CF6" />
+          </View>
+          <Text style={styles.manageInterestsText}>Manage My Interests</Text>
+          <ChevronRight size={20} color="#666666" />
+        </TouchableOpacity>
 
         {/* Content Section */}
         <View style={styles.contentSection}>
@@ -372,26 +397,30 @@ export default function ProfileScreen() {
                   <Text style={styles.progressStatLabel}>Total Time</Text>
                 </View>
                 <View style={styles.progressStatCard}>
-                  <Trophy size={24} color="#F59E0B" />
-                  <Text style={styles.progressStatNumber}>{userStats.badges}</Text>
+                  <Trophy size={24} color={theme.colors.accent} />
+                  <Text style={styles.progressStatNumber}>{userStats.badges.length}</Text>
                   <Text style={styles.progressStatLabel}>Badges</Text>
                 </View>
               </View>
 
-              <Text style={styles.badgesTitle}>Recent Badges</Text>
+              <Text style={styles.badgesTitle}>My Badges</Text>
               <View style={styles.badgesContainer}>
-                {mockBadges.map((badge) => (
-                  <View key={badge.id} style={styles.badgeItem}>
-                    <View style={[styles.badgeIcon, { backgroundColor: badge.color }]}>
-                      <Text style={styles.badgeEmoji}>{badge.icon}</Text>
+                {userStats.badges.length === 0 ? (
+                  <Text style={styles.emptyBadgeText}>No badges earned yet. Keep learning to unlock them!</Text>
+                ) : (
+                  userStats.badges.map((badge) => (
+                    <View key={badge.id} style={styles.badgeItem}>
+                      <View style={[styles.badgeIcon, { backgroundColor: badge.color || theme.colors.backgroundElevated }]}>
+                        <Text style={styles.badgeEmoji}>{badge.icon}</Text>
+                      </View>
+                      <View style={styles.badgeInfo}>
+                        <Text style={styles.badgeName}>{badge.name}</Text>
+                        <Text style={styles.badgeDescription}>{badge.description}</Text>
+                        <Text style={styles.badgeDate}>Earned: {badge.earnedDate}</Text>
+                      </View>
                     </View>
-                    <View style={styles.badgeInfo}>
-                      <Text style={styles.badgeName}>{badge.name}</Text>
-                      <Text style={styles.badgeDescription}>{badge.description}</Text>
-                      <Text style={styles.badgeDate}>Earned {badge.earnedDate}</Text>
-                    </View>
-                  </View>
-                ))}
+                  ))
+                )}
               </View>
             </ScrollView>
           </View>
@@ -458,48 +487,48 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.backgroundMain,
   },
   content: {
     flex: 1,
   },
   profileHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingHorizontal: theme.spacing.space_xl,
+    paddingTop: theme.spacing.space_xl,
+    paddingBottom: theme.spacing.space_xxxl,
   },
   profileTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: theme.spacing.space_xl,
   },
   settingsButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: theme.radii.radius_full,
+    backgroundColor: theme.colors.backgroundElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
   shareButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: theme.radii.radius_full,
+    backgroundColor: theme.colors.backgroundElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileInfo: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: theme.spacing.space_xxxl,
   },
   profileAvatar: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
+    borderRadius: theme.radii.radius_full,
+    marginBottom: theme.spacing.space_lg,
     borderWidth: 3,
-    borderColor: '#8B5CF6',
+    borderColor: theme.colors.primary,
   },
   profileDetails: {
     alignItems: 'center',
@@ -507,78 +536,81 @@ const styles = StyleSheet.create({
   profileNameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: theme.spacing.space_xs,
   },
   profileName: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginRight: 8,
+    fontSize: theme.typography.fontSizes.xxl,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginRight: theme.spacing.space_sm,
   },
   profileUsername: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    marginBottom: 12,
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.space_md,
   },
   profileBio: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
+    lineHeight: theme.typography.fontSizes.md * 1.5,
+    paddingHorizontal: theme.spacing.space_xl,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 20,
+    marginBottom: theme.spacing.space_xl,
   },
   statItem: {
     alignItems: 'center',
-    paddingHorizontal: 4, // Add some horizontal padding
+    paddingHorizontal: theme.spacing.space_xs,
   },
   statNumber: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.xl,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
   },
   statLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    marginTop: 4,
+    fontSize: theme.typography.fontSizes.sm,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.space_xs,
   },
-  // Specific styles for less prominent stats
   secondaryStatNumber: {
-    fontSize: 18, // Reduced font size
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
   },
   secondaryStatLabel: {
-    fontSize: 12, // Reduced font size
-    fontFamily: 'Inter-Regular',
-    color: '#A0A0A0', // Lighter color
-    marginTop: 4,
+    fontSize: theme.typography.fontSizes.xs,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textMuted,
+    marginTop: theme.spacing.space_xs,
   },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)', // Slightly more subtle background
-    borderRadius: 16,
-    paddingVertical: 12, // Reduced padding
-    paddingHorizontal: 10,
-    marginBottom: 20,
+    backgroundColor: theme.colors.backgroundElevated, // Adjusted
+    borderRadius: theme.radii.radius_lg,
+    paddingVertical: theme.spacing.space_md,
+    paddingHorizontal: theme.spacing.space_sm,
+    marginBottom: theme.spacing.space_xl,
   },
   progressItem: {
     alignItems: 'center',
-    flex: 1, // Distribute space
+    flex: 1,
   },
   progressText: {
-    fontSize: 11, // Reduced font size
-    fontFamily: 'Inter-Medium',
-    color: '#E0E0E0', // Slightly dimmer white
-    marginTop: 3, // Reduced margin
+    fontSize: theme.typography.fontSizes.xs,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    color: theme.colors.textPrimary, // Adjusted from E0E0E0
+    marginTop: theme.spacing.space_xs,
     textAlign: 'center',
   },
   actionButtons: {
@@ -587,405 +619,455 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   followButton: {
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginRight: 12,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.space_xxxl,
+    paddingVertical: theme.spacing.space_md,
+    borderRadius: theme.radii.radius_full,
+    marginRight: theme.spacing.space_md,
   },
   followingButton: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    backgroundColor: theme.colors.primary + '33', // Tinted background
     borderWidth: 1,
-    borderColor: '#8B5CF6',
+    borderColor: theme.colors.primary,
   },
   followButtonText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
+    color: theme.colors.white,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.md,
   },
   followingButtonText: {
-    color: '#8B5CF6',
+    color: theme.colors.primary,
   },
   messageButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: theme.radii.radius_full,
+    backgroundColor: theme.colors.backgroundElevated,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: theme.spacing.space_md,
   },
   premiumButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderRadius: theme.radii.radius_full,
+    backgroundColor: theme.colors.accent + '33', // Tinted background
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: theme.colors.accent,
   },
   contentSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: theme.spacing.space_xl,
+    paddingTop: theme.spacing.space_xl,
   },
   contentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.space_xl,
   },
-  contentTitle: {
-    fontSize: 18, // Standardized size
-    fontFamily: 'Poppins-SemiBold', // Standardized font
-    color: '#FFFFFF',
+  contentTitle: { // Already updated in previous step, ensure consistency
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.textPrimary,
   },
   viewModeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 20,
-    padding: 4,
+    backgroundColor: theme.colors.backgroundElevated,
+    borderRadius: theme.radii.radius_full,
+    padding: theme.spacing.space_xs,
   },
   viewModeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: theme.radii.radius_full,
     justifyContent: 'center',
     alignItems: 'center',
   },
   viewModeButtonActive: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: theme.colors.primary,
   },
   gridContainer: {
-    paddingBottom: 20,
+    paddingBottom: theme.spacing.space_xl,
   },
   gridRow: {
     justifyContent: 'space-between',
   },
   gridVideoItem: {
-    width: '48%',
-    marginBottom: 20,
+    width: '48%', // Keep as is for 2-column layout
+    marginBottom: theme.spacing.space_xl,
   },
   gridVideoThumbnailContainer: {
     position: 'relative',
-    borderRadius: 12,
+    borderRadius: theme.radii.radius_md,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: theme.spacing.space_sm,
   },
   gridVideoThumbnail: {
     width: '100%',
     height: 120,
     resizeMode: 'cover',
   },
-  gridVideoOverlay: {
+  gridVideoOverlay: { // Keep as is, specific styling
     position: 'absolute',
     top: '50%',
     left: '50%',
     transform: [{ translateX: -12 }, { translateY: -12 }],
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: theme.radii.radius_md,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gridVideoDuration: {
+  gridVideoDuration: { // Keep as is
     position: 'absolute',
-    bottom: 8,
-    right: 8,
+    bottom: theme.spacing.space_sm,
+    right: theme.spacing.space_sm,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: theme.radii.radius_sm,
   },
   gridVideoDurationText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 10,
+    color: theme.colors.white,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    fontSize: theme.typography.fontSizes.xs,
   },
-  gridVideoPremiumBadge: {
+  gridVideoPremiumBadge: { // Keep as is
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: theme.spacing.space_sm,
+    right: theme.spacing.space_sm,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: 4,
-    borderRadius: 8,
+    padding: theme.spacing.space_xs,
+    borderRadius: theme.radii.radius_sm,
   },
   gridVideoTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 14,
-    lineHeight: 18,
-    marginBottom: 4,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.sm,
+    lineHeight: theme.typography.fontSizes.sm * 1.3,
+    marginBottom: theme.spacing.space_xs,
   },
   gridVideoStats: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   gridVideoViews: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 11, // Reduced font size
+    color: theme.colors.textMuted,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.xs,
   },
   gridVideoLikes: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 11, // Reduced font size
-    marginLeft: 4,
+    color: theme.colors.textMuted,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.xs,
+    marginLeft: theme.spacing.space_xs,
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: theme.spacing.space_xl,
   },
   listVideoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    backgroundColor: theme.colors.backgroundElevated,
+    borderRadius: theme.radii.radius_md,
+    padding: theme.spacing.space_md,
+    marginBottom: theme.spacing.space_md,
   },
   listVideoThumbnailContainer: {
     position: 'relative',
-    borderRadius: 8,
+    borderRadius: theme.radii.radius_sm,
     overflow: 'hidden',
-    marginRight: 12,
+    marginRight: theme.spacing.space_md,
   },
-  listVideoThumbnail: {
+  listVideoThumbnail: { // Keep as is
     width: 80,
     height: 60,
     resizeMode: 'cover',
   },
-  listVideoOverlay: {
+  listVideoOverlay: { // Keep as is
     position: 'absolute',
     top: '50%',
     left: '50%',
     transform: [{ translateX: -15 }, { translateY: -15 }],
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: theme.radii.radius_lg, // Or full for circle
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  listVideoDuration: {
+  listVideoDuration: { // Keep as is
     position: 'absolute',
-    bottom: 4,
-    right: 4,
+    bottom: theme.spacing.space_xs,
+    right: theme.spacing.space_xs,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 4,
+    paddingHorizontal: theme.spacing.space_xs,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: theme.radii.radius_sm,
   },
   listVideoDurationText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 10,
+    color: theme.colors.white,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    fontSize: theme.typography.fontSizes.xs,
   },
-  listVideoPremiumBadge: {
+  listVideoPremiumBadge: { // Keep as is
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: theme.spacing.space_xs,
+    right: theme.spacing.space_xs,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     padding: 2,
-    borderRadius: 6,
+    borderRadius: theme.radii.radius_sm,
   },
   listVideoInfo: {
     flex: 1,
   },
   listVideoTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
-    lineHeight: 20,
-    marginBottom: 4,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.md,
+    lineHeight: theme.typography.fontSizes.md * 1.3,
+    marginBottom: theme.spacing.space_xs,
   },
   listVideoStats: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   listVideoViews: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 12, // Reduced font size
+    color: theme.colors.textMuted,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.sm, // Was 12, now sm (14)
   },
   listVideoLikes: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 12, // Reduced font size
-    marginLeft: 4,
+    color: theme.colors.textMuted,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.sm, // Was 12, now sm (14)
+    marginLeft: theme.spacing.space_xs,
   },
-  listVideoMenu: {
+  listVideoMenu: { // Keep as is
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: theme.radii.radius_full,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)', // Specific to modals
     justifyContent: 'flex-end',
   },
   progressModalContent: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.colors.backgroundSurface,
+    borderTopLeftRadius: theme.radii.radius_xl,
+    borderTopRightRadius: theme.radii.radius_xl,
     maxHeight: '80%',
   },
   progressModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: theme.spacing.space_xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: theme.colors.border,
   },
   progressModalTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.xl,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
   },
   progressModalScroll: {
-    flex: 1,
-    padding: 20,
+    flex: 1, // This was missing, important for ScrollView
+    padding: theme.spacing.space_xl,
   },
   progressStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 30,
+    marginBottom: theme.spacing.space_xxxl,
   },
   progressStatCard: {
     alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 16,
-    padding: 16,
-    minWidth: 80,
+    backgroundColor: theme.colors.backgroundElevated,
+    borderRadius: theme.radii.radius_lg,
+    padding: theme.spacing.space_lg,
+    minWidth: 80, // Keep for layout
   },
   progressStatNumber: {
-    fontSize: 18,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 8,
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginTop: theme.spacing.space_sm,
   },
   progressStatLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    marginTop: 4,
+    fontSize: theme.typography.fontSizes.xs,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.space_xs,
   },
-  badgesTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    marginBottom: 16,
+  badgesTitle: { // Already Poppins-SemiBold 18px
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.space_lg,
   },
   badgesContainer: {
-    paddingBottom: 20,
+    paddingBottom: theme.spacing.space_xl,
   },
   badgeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: theme.colors.backgroundElevated,
+    borderRadius: theme.radii.radius_md,
+    padding: theme.spacing.space_lg,
+    marginBottom: theme.spacing.space_md,
   },
-  badgeIcon: {
+  badgeIcon: { // Keep as is
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: theme.radii.radius_full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: theme.spacing.space_lg,
   },
   badgeEmoji: {
-    fontSize: 24,
+    fontSize: theme.typography.fontSizes.xxl, // Was 24
   },
   badgeInfo: {
     flex: 1,
   },
   badgeName: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-    marginBottom: 4,
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.space_xs,
   },
   badgeDescription: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    marginBottom: 4,
+    fontSize: theme.typography.fontSizes.sm,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.space_xs,
   },
   badgeDate: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#666666',
+    fontSize: theme.typography.fontSizes.xs,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textMuted,
+  },
+  emptyBadgeText: {
+    textAlign: 'center',
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.md,
+    color: theme.colors.textSecondary,
+    paddingVertical: theme.spacing.space_xxxl,
   },
   premiumModalContent: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.colors.backgroundSurface,
+    borderTopLeftRadius: theme.radii.radius_xl,
+    borderTopRightRadius: theme.radii.radius_xl,
     overflow: 'hidden',
   },
   premiumModalHeader: {
     alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+    paddingVertical: theme.spacing.space_xxxl,
+    paddingHorizontal: theme.spacing.space_xl,
   },
   premiumModalTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Poppins-Bold',
-    fontSize: 24,
-    marginTop: 16,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.xxl,
+    marginTop: theme.spacing.space_lg,
   },
   premiumModalSubtitle: {
-    color: '#CCCCCC',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    marginTop: 8,
+    color: theme.colors.textSecondary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.md,
+    marginTop: theme.spacing.space_sm,
     textAlign: 'center',
   },
   premiumFeatures: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+    paddingHorizontal: theme.spacing.space_xl,
+    paddingVertical: theme.spacing.space_xxxl,
   },
   premiumFeature: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing.space_lg,
   },
   premiumFeatureText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    marginLeft: 12,
+    color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.md,
+    marginLeft: theme.spacing.space_md,
   },
   subscribeButton: {
-    marginHorizontal: 20,
-    borderRadius: 25,
+    marginHorizontal: theme.spacing.space_xl,
+    borderRadius: theme.radii.radius_full,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginBottom: theme.spacing.space_lg,
   },
   subscribeButtonGradient: {
-    paddingVertical: 16,
+    paddingVertical: theme.spacing.space_lg,
     alignItems: 'center',
   },
   subscribeButtonText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 18,
+    color: theme.colors.white,
+    fontFamily: theme.typography.fontFamilyPrimary, // Or Headings
+    fontWeight: theme.typography.fontWeights.bold,
+    fontSize: theme.typography.fontSizes.lg,
   },
   closeModalButton: {
     alignItems: 'center',
-    paddingVertical: 16,
-    marginBottom: 20,
+    paddingVertical: theme.spacing.space_lg,
+    marginBottom: theme.spacing.space_xl,
   },
   closeModalText: {
-    color: '#8B5CF6',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    fontSize: theme.typography.fontSizes.md,
+  },
+  manageInterestsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.backgroundElevated,
+    paddingVertical: theme.spacing.space_lg,
+    paddingHorizontal: theme.spacing.space_xl,
+    borderRadius: theme.radii.radius_lg,
+    marginHorizontal: theme.spacing.space_xl,
+    marginTop: theme.spacing.space_xl,
+    marginBottom: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  manageInterestsIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radii.radius_full,
+    backgroundColor: theme.colors.primary + '26', // Lighter tint
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.space_lg,
+  },
+  manageInterestsText: {
+    flex: 1,
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.textPrimary,
   },
   bottomSpacing: {
-    height: 100,
+    height: 100, // Keep as is for scroll runway
   },
 });
+[end of profile.tsx]

@@ -9,9 +9,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CheckCircle, XCircle, Zap, Trophy, Clock, Target } from 'lucide-react-native';
+  XCircle, Zap, Trophy, Clock, Target, SkipForward } from 'lucide-react-native'; // Added SkipForward
+import { theme } from './theme'; // Import theme
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window'); // Added height
 
 interface Question {
   id: string;
@@ -68,15 +69,28 @@ const mockQuestions: Question[] = [
   }
 ];
 
-export default function QuizScreen() {
+interface QuizScreenProps {
+  isOverlayMode?: boolean;
+  onClose?: () => void; // For skipping or finishing in overlay mode
+  questions?: Question[]; // Optional prop for external questions
+}
+
+export default function QuizScreen({
+  isOverlayMode = false,
+  onClose,
+  questions = mockQuestions // Use internal mockQuestions if prop not provided
+}: QuizScreenProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
-  const [quizStarted, setQuizStarted] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(isOverlayMode); // Start immediately if overlay
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(1));
+
+  // Use passed questions length
+  const totalQuestions = questions.length;
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -112,7 +126,7 @@ export default function QuizScreen() {
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
-      if (currentQuestion < mockQuestions.length - 1) {
+      if (currentQuestion < totalQuestions - 1) { // Use totalQuestions
         setCurrentQuestion(currentQuestion + 1);
         setSelectedAnswer(null);
         setShowResult(false);
@@ -123,12 +137,20 @@ export default function QuizScreen() {
         }).start();
       } else {
         setQuizCompleted(true);
-        setQuizStarted(false);
+        // In overlay mode, onClose might also navigate away or hide the modal
+        if (isOverlayMode && onClose) {
+           // Optionally delay closing to show final result briefly
+          // setTimeout(onClose, 2000);
+        } else {
+          setQuizStarted(false); // Only set if not overlay, to show full result screen
+        }
       }
     });
   };
 
   const resetQuiz = () => {
+    // If in overlay mode and resetting, it implies starting over within the overlay
+    // or closing it to restart from a trigger. For now, simple reset.
     setCurrentQuestion(0);
     setSelectedAnswer(null);
     setShowResult(false);
@@ -140,21 +162,22 @@ export default function QuizScreen() {
   };
 
   const getScoreColor = () => {
-    const percentage = (score / mockQuestions.length) * 100;
-    if (percentage >= 80) return '#10B981';
-    if (percentage >= 60) return '#F59E0B';
+    const percentage = (score / totalQuestions) * 100; // Use totalQuestions
+    if (percentage >= 80) return theme.colors.success; // Use theme color
+    if (percentage >= 60) return theme.colors.accent;  // Use theme color
     return '#EF4444';
   };
 
-  if (!quizStarted && !quizCompleted) {
+  // Render welcome/start screen only if not in overlay mode
+  if (!quizStarted && !quizCompleted && !isOverlayMode) {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={['#1a1a2e', '#16213e', '#0f3460']}
-          style={styles.welcomeContainer}
+          colors={isOverlayMode ? [theme.colors.backgroundSurface, theme.colors.backgroundElevated] : ['#1a1a2e', '#16213e', '#0f3460']}
+          style={isOverlayMode ? styles.quizOverlayContainer : styles.welcomeContainer}
         >
           <View style={styles.welcomeContent}>
-            <Zap size={80} color="#8B5CF6" />
+            <Zap size={80} color={theme.colors.primary} />
             <Text style={styles.welcomeTitle}>Quick Quiz</Text>
             <Text style={styles.welcomeSubtitle}>
               Test your knowledge with interactive questions
@@ -162,17 +185,17 @@ export default function QuizScreen() {
             
             <View style={styles.quizStats}>
               <View style={styles.statItem}>
-                <Target size={24} color="#8B5CF6" />
-                <Text style={styles.statNumber}>{mockQuestions.length}</Text>
+                <Target size={24} color={theme.colors.primary} />
+                <Text style={styles.statNumber}>{totalQuestions}</Text>
                 <Text style={styles.statLabel}>Questions</Text>
               </View>
               <View style={styles.statItem}>
-                <Clock size={24} color="#8B5CF6" />
+                <Clock size={24} color={theme.colors.primary} />
                 <Text style={styles.statNumber}>30s</Text>
                 <Text style={styles.statLabel}>Per Question</Text>
               </View>
               <View style={styles.statItem}>
-                <Trophy size={24} color="#8B5CF6" />
+                <Trophy size={24} color={theme.colors.primary} />
                 <Text style={styles.statNumber}>Mixed</Text>
                 <Text style={styles.statLabel}>Topics</Text>
               </View>
@@ -180,11 +203,11 @@ export default function QuizScreen() {
 
             <TouchableOpacity style={styles.startButton} onPress={startQuiz}>
               <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
+                colors={[theme.colors.primary, theme.colors.primary+'BF']} // Adjusted gradient
                 style={styles.startButtonGradient}
               >
                 <Text style={styles.startButtonText}>Start Quiz</Text>
-                <Zap size={20} color="#FFFFFF" />
+                <Zap size={20} color={theme.colors.white} />
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -194,82 +217,105 @@ export default function QuizScreen() {
   }
 
   if (quizCompleted) {
+    const resultViewStyle = isOverlayMode ? [styles.quizOverlayContainer, styles.resultOverlay] : styles.resultContainer;
+    const resultActionsStyle = isOverlayMode ? [styles.resultActions, styles.resultActionsOverlay] : styles.resultActions;
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={isOverlayMode ? styles.quizOverlayContainer : styles.container}>
         <LinearGradient
-          colors={['#1a1a2e', '#16213e', '#0f3460']}
-          style={styles.resultContainer}
+          colors={isOverlayMode ? [theme.colors.backgroundSurface, theme.colors.backgroundElevated] : ['#1a1a2e', '#16213e', '#0f3460']}
+          style={resultViewStyle}
         >
           <View style={styles.resultContent}>
-            <Trophy size={80} color={getScoreColor()} />
+            {isOverlayMode && ( // Close button for overlay mode
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <XCircle size={24} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            )}
+            <Trophy size={isOverlayMode ? 60 : 80} color={getScoreColor()} />
             <Text style={styles.resultTitle}>Quiz Complete!</Text>
             
             <View style={styles.scoreContainer}>
               <Text style={[styles.scoreText, { color: getScoreColor() }]}>
-                {score}/{mockQuestions.length}
+                {score}/{totalQuestions}
               </Text>
               <Text style={styles.scorePercentage}>
-                {Math.round((score / mockQuestions.length) * 100)}%
+                {Math.round((score / totalQuestions) * 100)}%
               </Text>
             </View>
 
             <Text style={styles.resultMessage}>
-              {score === mockQuestions.length 
+              {score === totalQuestions
                 ? "Perfect! You're a learning champion! 🏆"
-                : score >= mockQuestions.length * 0.8
+                : score >= totalQuestions * 0.8
                 ? "Excellent work! Keep it up! 🌟"
-                : score >= mockQuestions.length * 0.6
+                : score >= totalQuestions * 0.6
                 ? "Good job! Room for improvement! 📚"
                 : "Keep learning and try again! 💪"
               }
             </Text>
 
-            <View style={styles.resultActions}>
-              <TouchableOpacity style={styles.retryButton} onPress={resetQuiz}>
-                <Text style={styles.retryButtonText}>Try Again</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.continueButton}>
-                <Text style={styles.continueButtonText}>Continue Learning</Text>
+            <View style={resultActionsStyle}>
+              {!isOverlayMode && (
+                <TouchableOpacity style={styles.retryButton} onPress={resetQuiz}>
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={isOverlayMode ? styles.overlayCtaButton : styles.continueButton}
+                onPress={isOverlayMode ? onClose : () => {/* Navigate to learning */}}
+              >
+                <Text style={isOverlayMode ? styles.overlayCtaButtonText : styles.continueButtonText}>
+                  {isOverlayMode ? 'Done' : 'Continue Learning'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  const question = mockQuestions[currentQuestion];
+  const question = questions[currentQuestion];
+  const mainContainerStyle = isOverlayMode ? styles.quizOverlayContainer : styles.container;
+  const quizContentStyle = isOverlayMode ? [styles.quizOverlayContent] : styles.quizContainer;
+
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={mainContainerStyle}>
       <LinearGradient
-        colors={['#1a1a2e', '#16213e', '#0f3460']}
-        style={styles.quizContainer}
+        colors={isOverlayMode ? [theme.colors.backgroundSurface, theme.colors.backgroundElevated] : ['#1a1a2e', '#16213e', '#0f3460']}
+        style={quizContentStyle}
       >
         <View style={styles.quizHeader}>
+          {isOverlayMode && ( // Skip button for overlay mode
+            <TouchableOpacity style={styles.skipButton} onPress={onClose}>
+              <SkipForward size={20} color={theme.colors.textMuted} />
+              <Text style={styles.skipButtonText}>Skip</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <View 
                 style={[
                   styles.progressFill, 
-                  { width: `${((currentQuestion + 1) / mockQuestions.length) * 100}%` }
+                  { width: `${((currentQuestion + 1) / totalQuestions) * 100}%` }
                 ]} 
               />
             </View>
             <Text style={styles.progressText}>
-              {currentQuestion + 1}/{mockQuestions.length}
+              {currentQuestion + 1}/{totalQuestions}
             </Text>
           </View>
 
           <View style={styles.timerContainer}>
-            <Clock size={20} color="#FFFFFF" />
-            <Text style={[styles.timerText, { color: timeLeft <= 10 ? '#EF4444' : '#FFFFFF' }]}>
+            <Clock size={20} color={theme.colors.textPrimary} />
+            <Text style={[styles.timerText, { color: timeLeft <= 10 ? theme.colors.error : theme.colors.textPrimary }]}>
               {timeLeft}s
             </Text>
           </View>
         </View>
 
-        <Animated.View style={[styles.questionContainer, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.questionContainer, { opacity: fadeAnim, flex: 1 }]}>
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{question.category}</Text>
           </View>
@@ -325,279 +371,353 @@ export default function QuizScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { // This style is for the full-screen quiz
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.backgroundMain,
+  },
+  quizOverlayContainer: { // New style for overlay mode
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.75, // 75% of screen height
+    backgroundColor: theme.colors.backgroundSurface,
+    borderTopLeftRadius: theme.radii.radius_xl,
+    borderTopRightRadius: theme.radii.radius_xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 20,
+  },
+  quizOverlayContent: { // Inner content padding for overlay
+    flex: 1,
+    paddingHorizontal: theme.spacing.space_lg,
+    paddingTop: theme.spacing.space_lg,
+    paddingBottom: theme.spacing.space_lg,
   },
   welcomeContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.space_xl,
   },
   welcomeContent: {
     alignItems: 'center',
     width: '100%',
   },
   welcomeTitle: {
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 20,
-    marginBottom: 10,
+    fontSize: theme.typography.fontSizes.display,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginTop: theme.spacing.space_xl,
+    marginBottom: theme.spacing.space_md,
   },
   welcomeSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: theme.spacing.space_xxxl,
   },
   quizStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    marginBottom: 40,
+    marginBottom: theme.spacing.space_xxxl,
   },
   statItem: {
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 8,
+    fontSize: theme.typography.fontSizes.xxl,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginTop: theme.spacing.space_sm,
   },
   statLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    marginTop: 4,
+    fontSize: theme.typography.fontSizes.sm,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.space_xs,
   },
   startButton: {
     width: '100%',
-    borderRadius: 25,
+    borderRadius: theme.radii.radius_full,
     overflow: 'hidden',
   },
   startButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: theme.spacing.space_lg,
+    paddingHorizontal: theme.spacing.space_xxxl,
   },
   startButtonText: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    marginRight: 8,
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.white,
+    marginRight: theme.spacing.space_sm,
   },
-  quizContainer: {
+  quizContainer: { // Used for full screen quiz content area
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: theme.spacing.space_lg,
+    paddingTop: theme.spacing.space_lg, // paddingTop for full screen
   },
   quizHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: theme.spacing.space_xxl,
+  },
+  skipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: theme.spacing.space_md, // Give some space from progress
+  },
+  skipButtonText: {
+    color: theme.colors.textMuted,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontSize: theme.typography.fontSizes.sm,
+    marginLeft: theme.spacing.space_xs,
   },
   progressContainer: {
     flex: 1,
-    marginRight: 20,
+    marginRight: theme.spacing.space_lg,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
-    marginBottom: 8,
+    height: 8, // Keep height for visibility
+    backgroundColor: theme.colors.backgroundElevated,
+    borderRadius: theme.radii.radius_sm,
+    marginBottom: theme.spacing.space_sm,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#8B5CF6',
-    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.radius_sm,
   },
   progressText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.sm,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    color: theme.colors.textPrimary,
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: theme.colors.backgroundElevated,
+    paddingHorizontal: theme.spacing.space_md,
+    paddingVertical: theme.spacing.space_sm,
+    borderRadius: theme.radii.radius_full,
   },
   timerText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    marginLeft: 6,
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.bold,
+    marginLeft: theme.spacing.space_xs,
   },
   questionContainer: {
-    flex: 1,
+    // flex: 1, // This will be handled by Animated.View style prop
   },
   categoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: theme.colors.primary + '33', // Tinted
+    paddingHorizontal: theme.spacing.space_lg,
+    paddingVertical: theme.spacing.space_sm,
+    borderRadius: theme.radii.radius_full,
     borderWidth: 1,
-    borderColor: '#8B5CF6',
-    marginBottom: 20,
+    borderColor: theme.colors.primary,
+    marginBottom: theme.spacing.space_xl,
   },
   categoryText: {
-    color: '#8B5CF6',
-    fontFamily: 'Inter-Medium',
-    fontSize: 14,
+    color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    fontSize: theme.typography.fontSizes.sm,
   },
   questionText: {
-    fontSize: 24,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    lineHeight: 32,
-    marginBottom: 30,
+    fontSize: theme.typography.fontSizes.xxl,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.textPrimary,
+    lineHeight: theme.typography.fontSizes.xxl * 1.3,
+    marginBottom: theme.spacing.space_xxl,
   },
   optionsContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.space_xl,
   },
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: theme.colors.backgroundElevated,
+    padding: theme.spacing.space_lg,
+    borderRadius: theme.radii.radius_md,
+    marginBottom: theme.spacing.space_md,
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: 'transparent', // Default no border
   },
   selectedOption: {
-    borderColor: '#8B5CF6',
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '33',
   },
   correctOption: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: theme.colors.success,
+    backgroundColor: theme.colors.success + '33',
   },
   incorrectOption: {
-    borderColor: '#EF4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: theme.colors.error,
+    backgroundColor: theme.colors.error + '33',
   },
   optionText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#FFFFFF',
-    flex: 1,
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textPrimary,
+    flex: 1, // Ensure text wraps if long
   },
   selectedOptionText: {
-    fontFamily: 'Inter-Medium',
+    fontWeight: theme.typography.fontWeights.medium,
   },
   correctOptionText: {
-    fontFamily: 'Inter-Medium',
+    fontWeight: theme.typography.fontWeights.medium,
   },
   explanationContainer: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: 20,
-    borderRadius: 16,
-    marginTop: 20,
+    backgroundColor: theme.colors.backgroundElevated,
+    padding: theme.spacing.space_xl,
+    borderRadius: theme.radii.radius_lg,
+    marginTop: theme.spacing.space_xl,
   },
   explanationTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#8B5CF6',
-    marginBottom: 8,
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.primary,
+    marginBottom: theme.spacing.space_sm,
   },
   explanationText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    lineHeight: 24,
-    marginBottom: 20,
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
+    lineHeight: theme.typography.fontSizes.md * 1.5,
+    marginBottom: theme.spacing.space_xl,
   },
   nextButton: {
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.space_md,
+    paddingHorizontal: theme.spacing.space_xl,
+    borderRadius: theme.radii.radius_full,
     alignSelf: 'center',
   },
   nextButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.white,
   },
-  resultContainer: {
+  resultContainer: { // For full screen result
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.space_xl,
+  },
+  resultOverlay: { // Specific style for result in overlay mode
+    borderTopLeftRadius: theme.radii.radius_xl,
+    borderTopRightRadius: theme.radii.radius_xl,
+    paddingBottom: theme.spacing.space_md, // Add some padding at the bottom
   },
   resultContent: {
     alignItems: 'center',
     width: '100%',
+    padding: theme.spacing.space_md, // Padding for content within overlay/result screen
+  },
+  closeButton: { // For closing overlay result
+    position: 'absolute',
+    top: theme.spacing.space_md,
+    right: theme.spacing.space_md,
+    zIndex: 10,
   },
   resultTitle: {
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 20,
-    marginBottom: 30,
+    fontSize: theme.typography.fontSizes.display,
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
+    color: theme.colors.textPrimary,
+    marginTop: theme.spacing.space_xl,
+    marginBottom: theme.spacing.space_xxl,
   },
   scoreContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.space_xl,
   },
   scoreText: {
-    fontSize: 48,
-    fontFamily: 'Poppins-Bold',
+    fontSize: theme.typography.fontSizes.display * 1.5, // Larger score
+    fontFamily: theme.typography.fontFamilyHeadings,
+    fontWeight: theme.typography.fontWeights.bold,
   },
   scorePercentage: {
-    fontSize: 24,
-    fontFamily: 'Inter-Medium',
-    color: '#CCCCCC',
-    marginTop: 8,
+    fontSize: theme.typography.fontSizes.xxl,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.medium,
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.space_sm,
   },
   resultMessage: {
-    fontSize: 18,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 26,
+    marginBottom: theme.spacing.space_xxxl,
+    lineHeight: theme.typography.fontSizes.lg * 1.5,
   },
   resultActions: {
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'space-between',
   },
+  resultActionsOverlay: { // Specific for overlay to manage button layout
+    paddingHorizontal: theme.spacing.space_md,
+  },
   retryButton: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 16,
-    borderRadius: 25,
-    marginRight: 10,
+    backgroundColor: theme.colors.backgroundElevated,
+    paddingVertical: theme.spacing.space_lg,
+    borderRadius: theme.radii.radius_full,
+    marginRight: theme.spacing.space_sm,
     alignItems: 'center',
   },
   retryButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.textPrimary,
   },
   continueButton: {
     flex: 1,
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 16,
-    borderRadius: 25,
-    marginLeft: 10,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.space_lg,
+    borderRadius: theme.radii.radius_full,
+    marginLeft: theme.spacing.space_sm,
     alignItems: 'center',
   },
   continueButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.white,
   },
+  overlayCtaButton: { // For "Done" button in overlay result
+    flex: 1,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.space_lg,
+    borderRadius: theme.radii.radius_full,
+    alignItems: 'center',
+  },
+  overlayCtaButtonText: {
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fontFamilyPrimary,
+    fontWeight: theme.typography.fontWeights.semiBold,
+    color: theme.colors.white,
+  }
 });
