@@ -7,9 +7,15 @@ import {
   SafeAreaView,
   Animated,
   Dimensions,
+  Platform, // Added for potential platform-specific styling
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { CheckCircle, XCircle, Zap, Trophy, Clock, Target } from 'lucide-react-native';
+import { CheckCircle, XCircle, Zap, Trophy, Clock, Target, ChevronDown } from 'lucide-react-native'; // Added ChevronDown for close/drag handle
+
+// Design System Components
+import StyledText from './components/StyledText';
+import StyledButton from './components/StyledButton';
+import theme from './styles/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +27,11 @@ interface Question {
   category: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   explanation: string;
+}
+
+interface QuizScreenProps {
+  videoTitle?: string;
+  onCloseQuiz?: () => void; // Callback to close the quiz overlay
 }
 
 const mockQuestions: Question[] = [
@@ -68,33 +79,35 @@ const mockQuestions: Question[] = [
   }
 ];
 
-export default function QuizScreen() {
+export default function QuizScreen({ videoTitle, onCloseQuiz }: QuizScreenProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [quizStarted, setQuizStarted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30); // Initial time per question
+  // quizStarted is effectively true on mount now
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
+    // Initialize quiz state (first question)
+    if (!quizCompleted) { // Only run timer if quiz is active
+        setTimeLeft(30); // Reset timer for each new question (or initial load)
+    }
+  }, [currentQuestion, quizCompleted]);
+
+
+  useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (quizStarted && !quizCompleted && timeLeft > 0) {
+    if (!quizCompleted && timeLeft > 0 && !showResult) { // Timer runs if quiz active, time left, and no answer shown
       timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    } else if (timeLeft === 0 && !showResult) {
-      handleNextQuestion();
+    } else if (timeLeft === 0 && !showResult && !quizCompleted) {
+      // Auto-submit or mark as incorrect when time runs out
+      handleAnswerSelect(-1); // Pass -1 or a special indicator for timeout
     }
     return () => clearTimeout(timer);
-  }, [timeLeft, quizStarted, quizCompleted, showResult]);
+  }, [timeLeft, showResult, quizCompleted]);
 
-  const startQuiz = () => {
-    setQuizStarted(true);
-    setCurrentQuestion(0);
-    setScore(0);
-    setTimeLeft(30);
-    setQuizCompleted(false);
-  };
 
   const handleAnswerSelect = (answerIndex: number) => {
     if (selectedAnswer !== null) return;
@@ -108,24 +121,35 @@ export default function QuizScreen() {
   };
 
   const handleNextQuestion = () => {
+    if (currentQuestion >= mockQuestions.length - 1 && showResult) { // If on last question's explanation
+        setQuizCompleted(true); // Mark quiz as completed
+        return; // Do not proceed to next question logic
+    }
+
     Animated.fadeOut(fadeAnim, {
       duration: 300,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web', // useNativeDriver true might cause issues on web
     }).start(() => {
       if (currentQuestion < mockQuestions.length - 1) {
         setCurrentQuestion(currentQuestion + 1);
         setSelectedAnswer(null);
         setShowResult(false);
-        setTimeLeft(30);
+        // TimeLeft is now reset by useEffect on currentQuestion change
         Animated.fadeIn(fadeAnim, {
           duration: 300,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }).start();
       } else {
         setQuizCompleted(true);
-        setQuizStarted(false);
       }
     });
+  };
+
+  const handleSkipQuiz = () => {
+    console.log("Quiz skipped");
+    if (onCloseQuiz) {
+      onCloseQuiz();
+    }
   };
 
   const resetQuiz = () => {
@@ -133,87 +157,46 @@ export default function QuizScreen() {
     setSelectedAnswer(null);
     setShowResult(false);
     setScore(0);
-    setTimeLeft(30);
-    setQuizStarted(false);
+    // timeLeft will be reset by useEffect
     setQuizCompleted(false);
     fadeAnim.setValue(1);
   };
 
   const getScoreColor = () => {
     const percentage = (score / mockQuestions.length) * 100;
-    if (percentage >= 80) return '#10B981';
-    if (percentage >= 60) return '#F59E0B';
-    return '#EF4444';
+    if (percentage >= 80) return theme.colors.success;
+    if (percentage >= 60) return theme.colors.warning;
+    return theme.colors.error;
   };
 
-  if (!quizStarted && !quizCompleted) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#1a1a2e', '#16213e', '#0f3460']}
-          style={styles.welcomeContainer}
-        >
-          <View style={styles.welcomeContent}>
-            <Zap size={80} color="#8B5CF6" />
-            <Text style={styles.welcomeTitle}>Quick Quiz</Text>
-            <Text style={styles.welcomeSubtitle}>
-              Test your knowledge with interactive questions
-            </Text>
-            
-            <View style={styles.quizStats}>
-              <View style={styles.statItem}>
-                <Target size={24} color="#8B5CF6" />
-                <Text style={styles.statNumber}>{mockQuestions.length}</Text>
-                <Text style={styles.statLabel}>Questions</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Clock size={24} color="#8B5CF6" />
-                <Text style={styles.statNumber}>30s</Text>
-                <Text style={styles.statLabel}>Per Question</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Trophy size={24} color="#8B5CF6" />
-                <Text style={styles.statNumber}>Mixed</Text>
-                <Text style={styles.statLabel}>Topics</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.startButton} onPress={startQuiz}>
-              <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
-                style={styles.startButtonGradient}
-              >
-                <Text style={styles.startButtonText}>Start Quiz</Text>
-                <Zap size={20} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-      </SafeAreaView>
-    );
-  }
+  // Removed the initial "Start Quiz" screen. Quiz starts directly with the first question.
 
   if (quizCompleted) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.panelContainer}>
         <LinearGradient
-          colors={['#1a1a2e', '#16213e', '#0f3460']}
+          colors={[theme.colors.primaryDark, theme.colors.primary, theme.colors.secondary]}
           style={styles.resultContainer}
         >
+          <TouchableOpacity onPress={onCloseQuiz} style={styles.closeButton}>
+            <ChevronDown size={24} color={theme.colors.white} />
+          </TouchableOpacity>
           <View style={styles.resultContent}>
             <Trophy size={80} color={getScoreColor()} />
-            <Text style={styles.resultTitle}>Quiz Complete!</Text>
+            <StyledText variant="h2" color="white" style={{ marginTop: theme.spacing.md, marginBottom: theme.spacing.lg }}>
+              Quiz Complete!
+            </StyledText>
             
             <View style={styles.scoreContainer}>
-              <Text style={[styles.scoreText, { color: getScoreColor() }]}>
+              <StyledText style={[styles.scoreText, { color: getScoreColor() }]}>
                 {score}/{mockQuestions.length}
-              </Text>
-              <Text style={styles.scorePercentage}>
+              </StyledText>
+              <StyledText variant="h3" color="textSecondary" style={{ marginTop: theme.spacing.xs }}>
                 {Math.round((score / mockQuestions.length) * 100)}%
-              </Text>
+              </StyledText>
             </View>
 
-            <Text style={styles.resultMessage}>
+            <StyledText variant="body" color="textSecondary" textAlign="center" style={{ marginBottom: theme.spacing.lg }}>
               {score === mockQuestions.length 
                 ? "Perfect! You're a learning champion! 🏆"
                 : score >= mockQuestions.length * 0.8
@@ -222,382 +205,261 @@ export default function QuizScreen() {
                 ? "Good job! Room for improvement! 📚"
                 : "Keep learning and try again! 💪"
               }
-            </Text>
+            </StyledText>
 
             <View style={styles.resultActions}>
-              <TouchableOpacity style={styles.retryButton} onPress={resetQuiz}>
-                <Text style={styles.retryButtonText}>Try Again</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.continueButton}>
-                <Text style={styles.continueButtonText}>Continue Learning</Text>
-              </TouchableOpacity>
+              <StyledButton title="Try Again" onPress={resetQuiz} variant="outline" size="lg" style={{flex:1, marginRight: theme.spacing.sm}} />
+              <StyledButton title="Close" onPress={onCloseQuiz} variant="primary" size="lg" style={{flex:1, marginLeft: theme.spacing.sm}} />
             </View>
           </View>
         </LinearGradient>
-      </SafeAreaView>
+      </View>
     );
   }
 
   const question = mockQuestions[currentQuestion];
+  if (!question) return null; // Should not happen if logic is correct
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.panelContainer}>
       <LinearGradient
-        colors={['#1a1a2e', '#16213e', '#0f3460']}
+        colors={[theme.colors.primaryDark, theme.colors.primary, theme.colors.secondary]}
         style={styles.quizContainer}
       >
+        <TouchableOpacity onPress={onCloseQuiz} style={styles.closeButton}>
+          <ChevronDown size={24} color={theme.colors.white} />
+        </TouchableOpacity>
+
+        {videoTitle && (
+          <StyledText variant="caption" color="textSecondary" textAlign="center" style={styles.videoTitleText}>
+            Quiz for: {videoTitle}
+          </StyledText>
+        )}
+
         <View style={styles.quizHeader}>
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
               <View 
                 style={[
                   styles.progressFill, 
-                  { width: `${((currentQuestion + 1) / mockQuestions.length) * 100}%` }
+                  { width: `${((currentQuestion + 1) / mockQuestions.length) * 100}%`, backgroundColor: theme.colors.secondary }
                 ]} 
               />
             </View>
-            <Text style={styles.progressText}>
+            <StyledText variant="small" color="white">
               {currentQuestion + 1}/{mockQuestions.length}
-            </Text>
+            </StyledText>
           </View>
 
           <View style={styles.timerContainer}>
-            <Clock size={20} color="#FFFFFF" />
-            <Text style={[styles.timerText, { color: timeLeft <= 10 ? '#EF4444' : '#FFFFFF' }]}>
+            <Clock size={20} color={theme.colors.white} />
+            <StyledText variant="body" fontWeight="bold" style={{ color: timeLeft <= 10 ? theme.colors.error : theme.colors.white, marginLeft: theme.spacing.xs }}>
               {timeLeft}s
-            </Text>
+            </StyledText>
           </View>
         </View>
 
         <Animated.View style={[styles.questionContainer, { opacity: fadeAnim }]}>
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{question.category}</Text>
+            <StyledText variant="small" style={{ color: theme.colors.secondary }}>{question.category}</StyledText>
           </View>
 
-          <Text style={styles.questionText}>{question.question}</Text>
+          <StyledText variant="h3" color="white" style={styles.questionText}>{question.question}</StyledText>
 
           <View style={styles.optionsContainer}>
-            {question.options.map((option, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.optionButton,
-                  selectedAnswer === index && styles.selectedOption,
-                  showResult && index === question.correctAnswer && styles.correctOption,
-                  showResult && selectedAnswer === index && index !== question.correctAnswer && styles.incorrectOption,
-                ]}
-                onPress={() => handleAnswerSelect(index)}
-                disabled={selectedAnswer !== null}
-              >
-                <Text style={[
-                  styles.optionText,
-                  selectedAnswer === index && styles.selectedOptionText,
-                  showResult && index === question.correctAnswer && styles.correctOptionText,
-                ]}>
-                  {option}
-                </Text>
-                {showResult && index === question.correctAnswer && (
-                  <CheckCircle size={20} color="#FFFFFF" />
-                )}
-                {showResult && selectedAnswer === index && index !== question.correctAnswer && (
-                  <XCircle size={20} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
-            ))}
+            {question.options.map((option, index) => {
+              const isSelected = selectedAnswer === index;
+              const isCorrect = index === question.correctAnswer;
+              let buttonVariant: React.ComponentProps<typeof StyledButton>['variant'] = 'outline';
+              let icon = null;
+
+              if (showResult) {
+                if (isCorrect) {
+                  buttonVariant = 'primary'; // Or a specific "correct" variant
+                  icon = <CheckCircle size={20} color={theme.colors.white} />;
+                } else if (isSelected && !isCorrect) {
+                  buttonVariant = 'danger';
+                  icon = <XCircle size={20} color={theme.colors.white} />;
+                }
+              } else if (isSelected) {
+                 buttonVariant = 'primary'; // Highlight selected before result
+              }
+
+              return (
+                <StyledButton
+                  key={index}
+                  title={option}
+                  variant={buttonVariant}
+                  onPress={() => handleAnswerSelect(index)}
+                  disabled={selectedAnswer !== null}
+                  rightIcon={icon}
+                  style={styles.optionButton}
+                  textStyleProps={{textAlign:'left', flex:1}} // Ensure text aligns left
+                />
+              );
+            })}
           </View>
+
+          {!showResult && selectedAnswer === null && (
+             <StyledButton
+                title="Skip Quiz"
+                onPress={handleSkipQuiz}
+                variant="ghost"
+                size="sm"
+                style={styles.skipButton}
+            />
+          )}
 
           {showResult && (
             <View style={styles.explanationContainer}>
-              <Text style={styles.explanationTitle}>Explanation:</Text>
-              <Text style={styles.explanationText}>{question.explanation}</Text>
+              <StyledText variant="h3" color="secondary" style={{marginBottom: theme.spacing.sm}}>Explanation:</StyledText>
+              <StyledText variant="body" color="textSecondary" style={{lineHeight: theme.typography.fontSizes.md * theme.typography.lineHeights.loose, marginBottom: theme.spacing.md}}>
+                {question.explanation}
+              </StyledText>
               
-              <TouchableOpacity style={styles.nextButton} onPress={handleNextQuestion}>
-                <Text style={styles.nextButtonText}>
-                  {currentQuestion < mockQuestions.length - 1 ? 'Next Question' : 'Finish Quiz'}
-                </Text>
-              </TouchableOpacity>
+              <StyledButton
+                title={currentQuestion < mockQuestions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+                onPress={handleNextQuestion}
+                variant="primary"
+                size="lg"
+              />
             </View>
           )}
         </Animated.View>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  panelContainer: { // New root container for the overlay panel
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '85%', // Example height, adjust as needed
+    backgroundColor: theme.colors.transparent, // Ensure parent transparency if any part of gradient is transparent
+    borderTopLeftRadius: theme.borders.borderRadius.xl,
+    borderTopRightRadius: theme.borders.borderRadius.xl,
+    overflow: 'hidden', // Important for border radius on gradient
+    shadowColor: theme.colors.black,
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 20, // For Android shadow
+  },
+  // Removed welcomeContainer, welcomeContent, welcomeTitle, welcomeSubtitle, quizStats, statItem, statNumber, statLabel, startButton, startButtonGradient, startButtonText
+  // These were part of the old full-screen start quiz view.
+  quizContainer: { // This will now be the content of the panel
     flex: 1,
-    backgroundColor: '#000000',
+    padding: theme.spacing.md,
+    paddingTop: theme.spacing.lg, // More space at top for title/close
   },
-  welcomeContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+  videoTitleText: {
+    marginBottom: theme.spacing.sm,
+    opacity: 0.8,
   },
-  welcomeContent: {
-    alignItems: 'center',
-    width: '100%',
+  closeButton: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    alignSelf: 'center', // Centered pull-down affordance
+    padding: theme.spacing.sm,
+    zIndex: 10, // Ensure it's tappable
   },
-  welcomeTitle: {
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    textAlign: 'center',
-    marginBottom: 40,
-  },
-  quizStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 40,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    marginTop: 4,
-  },
-  startButton: {
-    width: '100%',
-    borderRadius: 25,
-    overflow: 'hidden',
-  },
-  startButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-  },
-  startButtonText: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  quizContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  quizHeader: {
+  quizHeader: { // Styles adjusted to use theme
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: theme.spacing.lg,
   },
   progressContainer: {
     flex: 1,
-    marginRight: 20,
+    marginRight: theme.spacing.md,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
-    marginBottom: 8,
+    height: theme.spacing.sm,
+    backgroundColor: theme.colors.black + '40', // Black with opacity
+    borderRadius: theme.borders.borderRadius.sm,
+    marginBottom: theme.spacing.xs,
   },
-  progressFill: {
+  progressFill: { // Color changed in-line
     height: '100%',
-    backgroundColor: '#8B5CF6',
-    borderRadius: 4,
+    borderRadius: theme.borders.borderRadius.sm,
   },
-  progressText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#FFFFFF',
-  },
+  // progressText: Replaced by StyledText
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: theme.colors.black + '30', // Black with opacity
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borders.borderRadius.pill,
   },
-  timerText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    marginLeft: 6,
-  },
-  questionContainer: {
+  // timerText: Replaced by StyledText
+  questionContainer: { // Styles adjusted
     flex: 1,
+    paddingBottom: theme.spacing.md, // Ensure space for skip button if at bottom
   },
-  categoryBadge: {
+  categoryBadge: { // Styles adjusted
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: theme.colors.secondary + '30', // Secondary with opacity
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borders.borderRadius.pill,
     borderWidth: 1,
-    borderColor: '#8B5CF6',
-    marginBottom: 20,
+    borderColor: theme.colors.secondary,
+    marginBottom: theme.spacing.md,
   },
-  categoryText: {
-    color: '#8B5CF6',
-    fontFamily: 'Inter-Medium',
-    fontSize: 14,
-  },
-  questionText: {
-    fontSize: 24,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    lineHeight: 32,
-    marginBottom: 30,
+  // categoryText: Replaced by StyledText
+  questionText: { // Styles adjusted
+    marginBottom: theme.spacing.lg,
+    // fontSize, fontFamily, color handled by StyledText
   },
   optionsContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.md,
   },
-  optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
+  optionButton: { // This style is for StyledButton, so it will be passed to its `style` prop
+    marginBottom: theme.spacing.sm,
+    // Other styling handled by StyledButton variants
   },
-  selectedOption: {
-    borderColor: '#8B5CF6',
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+  // selectedOption, correctOption, incorrectOption are handled by StyledButton variants
+  // optionText, selectedOptionText, correctOptionText are handled by StyledButton's StyledText
+  explanationContainer: { // Styles adjusted
+    backgroundColor: theme.colors.black + '30', // Black with opacity
+    padding: theme.spacing.md,
+    borderRadius: theme.borders.borderRadius.lg,
+    marginTop: theme.spacing.md,
   },
-  correctOption: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-  },
-  incorrectOption: {
-    borderColor: '#EF4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-  },
-  optionText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#FFFFFF',
-    flex: 1,
-  },
-  selectedOptionText: {
-    fontFamily: 'Inter-Medium',
-  },
-  correctOptionText: {
-    fontFamily: 'Inter-Medium',
-  },
-  explanationContainer: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: 20,
-    borderRadius: 16,
-    marginTop: 20,
-  },
-  explanationTitle: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#8B5CF6',
-    marginBottom: 8,
-  },
-  explanationText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  nextButton: {
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
-    alignSelf: 'center',
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-  },
-  resultContainer: {
+  // explanationTitle, explanationText, nextButton, nextButtonText are replaced by Styled components
+  resultContainer: { // This is for the quizCompleted state
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: theme.spacing.lg,
   },
   resultContent: {
     alignItems: 'center',
     width: '100%',
   },
-  resultTitle: {
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    marginTop: 20,
-    marginBottom: 30,
-  },
+  // resultTitle: Replaced by StyledText
   scoreContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.md,
   },
-  scoreText: {
-    fontSize: 48,
-    fontFamily: 'Poppins-Bold',
+  scoreText: { // For the "X/Y" text, specific style for large numbers
+    fontFamily: theme.typography.fonts.poppinsBold,
+    fontSize: theme.typography.fontSizes.display,
   },
-  scorePercentage: {
-    fontSize: 24,
-    fontFamily: 'Inter-Medium',
-    color: '#CCCCCC',
-    marginTop: 8,
-  },
-  resultMessage: {
-    fontSize: 18,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 26,
-  },
-  resultActions: {
+  // scorePercentage, resultMessage: Replaced by StyledText
+  resultActions: { // Styles adjusted
     flexDirection: 'row',
     width: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around', // Or space-between
+    marginTop: theme.spacing.lg,
   },
-  retryButton: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingVertical: 16,
-    borderRadius: 25,
-    marginRight: 10,
-    alignItems: 'center',
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-  },
-  continueButton: {
-    flex: 1,
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 16,
-    borderRadius: 25,
-    marginLeft: 10,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-  },
+  skipButton: {
+    marginTop: theme.spacing.md,
+    alignSelf: 'center',
+  }
+  // retryButton, retryButtonText, continueButton, continueButtonText are replaced by StyledButton
 });

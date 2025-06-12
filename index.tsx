@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,12 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Play, Heart, MessageCircle, Share, BookOpen, Crown, Lock, Star, MoveHorizontal as MoreHorizontal, Volume2, VolumeX, X, Send, Pause, Filter, TrendingUp } from 'lucide-react-native';
+import { router } from 'expo-router'; // Added for navigation
+import { Play, Heart, MessageCircle, Share, BookOpen, Crown, Lock, Star, MoveHorizontal as MoreHorizontal, Volume2, VolumeX, X, Send, Pause, Filter, TrendingUp, Brain, ChevronRight, Maximize, HelpCircle } from 'lucide-react-native'; // Added Maximize, Brain, ChevronRight, HelpCircle
+
+// Design System & Quiz
+import theme from './styles/theme';
+import QuizScreen from './quiz'; // Assuming quiz.tsx is at the root
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,6 +45,8 @@ interface VideoContent {
   isPlaying: boolean;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   tags: string[];
+  hasQuiz?: boolean;
+  quizTimestamp?: number; // Seconds into video when quiz should trigger
 }
 
 interface Comment {
@@ -74,6 +81,8 @@ const mockVideos: VideoContent[] = [
     isPlaying: true,
     difficulty: 'Beginner',
     tags: ['react', 'hooks', 'javascript'],
+    hasQuiz: true,
+    quizTimestamp: 5, // Show quiz cue after 5 seconds for this video
   },
   {
     id: '2',
@@ -97,6 +106,8 @@ const mockVideos: VideoContent[] = [
     isPlaying: false,
     difficulty: 'Beginner',
     tags: ['ai', 'neural-networks', 'machine-learning'],
+    hasQuiz: true,
+    quizTimestamp: 8,
   },
   {
     id: '3',
@@ -321,8 +332,75 @@ export default function HomeScreen() {
   const [newComment, setNewComment] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [showMigrationModal, setShowMigrationModal] = useState(false); // Added for migration
+  const [controlsVisible, setControlsVisible] = useState(true); // For B4 de-clutter
+
+  // State for Quiz Overlay
+  const [showQuizOverlay, setShowQuizOverlay] = useState(false);
+  const [activeQuizVideoTitle, setActiveQuizVideoTitle] = useState<string | undefined>(undefined);
+  // const [currentVideoQuizData, setCurrentVideoQuizData] = useState<any>(null); // For actual quiz data later
+  const [quizTriggerVisible, setQuizTriggerVisible] = useState<{[videoId: string]: boolean}>({});
+  const quizTimeoutId = useRef<NodeJS.Timeout | null>(null);
+
   const scrollViewRef = useRef<ScrollView>(null);
   const [fadeAnim] = useState(new Animated.Value(1));
+
+  // Simulate checking if new onboarding is completed
+  const checkIfNewOnboardingCompleted = () => {
+    // In a real app, this would check AsyncStorage or similar
+    console.log('Simulating check: New onboarding not completed.');
+    return false;
+  };
+
+  useEffect(() => {
+    // Prevent modal from showing if already on onboarding screen (e.g. after pressing back)
+    // This is a simple check; a more robust solution might involve global state or route listeners.
+    if (router.canGoBack() && router.getPathname() === '/onboarding') {
+        return;
+    }
+
+    if (!checkIfNewOnboardingCompleted()) {
+      setShowMigrationModal(true);
+    }
+  }, []);
+
+
+  const handleShowQuiz = (video: VideoContent) => {
+    setActiveQuizVideoTitle(video.title);
+    // In future, load specific quiz data for video: setCurrentVideoQuizData(video.quizData);
+    setShowQuizOverlay(true);
+    setQuizTriggerVisible(prev => ({ ...prev, [video.id]: false })); // Hide trigger once quiz is shown
+  };
+
+  const scheduleQuizTrigger = useCallback((video: VideoContent) => {
+    if (quizTimeoutId.current) {
+      clearTimeout(quizTimeoutId.current);
+    }
+    setQuizTriggerVisible(prev => ({ ...prev, [video.id]: false })); // Hide for current video initially
+
+    if (video.hasQuiz && video.quizTimestamp && video.isPlaying) {
+      quizTimeoutId.current = setTimeout(() => {
+        console.log(`Quiz trigger for video ${video.id} at ${video.quizTimestamp}s`);
+        setQuizTriggerVisible(prev => ({ ...prev, [video.id]: true }));
+      }, video.quizTimestamp * 1000);
+    }
+  }, [videos]); // videos dependency might be broad, consider refining if videos state changes often unnecessarily
+
+  // Effect to schedule quiz trigger when current video changes or its playing state changes
+  useEffect(() => {
+    const currentVideoData = filteredVideos[currentVideo];
+    if (currentVideoData) {
+      scheduleQuizTrigger(currentVideoData);
+    }
+
+    // Cleanup timeout when component unmounts or dependencies change
+    return () => {
+      if (quizTimeoutId.current) {
+        clearTimeout(quizTimeoutId.current);
+      }
+    };
+  }, [currentVideo, filteredVideos, scheduleQuizTrigger]);
+
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) {
@@ -470,133 +548,130 @@ export default function HomeScreen() {
           );
         }}
       >
-        {filteredVideos.map((video, index) => (
-          <View key={video.id} style={styles.videoCard}>
-            <TouchableOpacity 
-              style={styles.videoTouchable}
-              onPress={() => handlePremiumContent(video)}
-              activeOpacity={0.9}
+        {filteredVideos.map((videoItem, index) => (
+          <View key={videoItem.id} style={styles.videoCardOuter}>
+            <TouchableOpacity
+              style={styles.videoPlayerArea}
+              onPress={() => {
+                // Toggle controls visibility first
+                setControlsVisible(!controlsVisible);
+                // Then, if video is not premium and controls are about to become visible (or were just made visible),
+                // and video is not playing, one might want to play it.
+                // However, the primary action of tap is now toggling controls.
+                // Original premium check logic:
+                // if (videoItem.isPremium) {
+                //   setShowPremiumModal(true);
+                // } else {
+                //  handlePlayPause(videoItem.id); // This would play/pause directly
+                // }
+              }}
+              activeOpacity={1} // Ensure full opacity for the touchable area
             >
-              <Image source={{ uri: video.thumbnail }} style={styles.videoBackground} />
+              <Image source={{ uri: videoItem.thumbnail }} style={styles.videoBackground} />
               
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
-                style={styles.videoOverlay}
-              />
+              {/* Removed videoOverlay LinearGradient, can be added back if needed for contrast with text/icons */}
 
-              {video.isPremium && (
-                <View style={styles.premiumBadge}>
-                  <Crown size={16} color="#FFD700" />
-                  <Text style={styles.premiumText}>PRO</Text>
-                </View>
-              )}
-
-              {/* Invisible Play/Pause - Tap anywhere to toggle */}
-              {!video.isPremium && (
-                <View style={styles.playingIndicator}>
-                  <Text style={styles.playingText}>
-                    {video.isPlaying ? '▶ Playing' : '⏸ Paused'}
+              {/* Caption Placeholder - Renders only if controls are visible */}
+              {controlsVisible && (
+                <View style={styles.captionContainer}>
+                  <Text style={styles.captionText} numberOfLines={2}>
+                    This is a placeholder for two lines of captions. Lorem ipsum dolor sit amet... <Text style={styles.captionMore}>more</Text>
                   </Text>
                 </View>
               )}
 
-              <TouchableOpacity 
-                style={styles.muteButton}
-                onPress={() => handleMute(video.id)}
-              >
-                {video.isMuted ? (
-                  <VolumeX size={24} color="#FFFFFF" />
-                ) : (
-                  <Volume2 size={24} color="#FFFFFF" />
-                )}
-              </TouchableOpacity>
+              {/* Bottom Control Bar - Renders only if controls are visible */}
+              {controlsVisible && (
+                <View style={styles.bottomControlBar}>
+                  <TouchableOpacity onPress={() => handlePlayPause(videoItem.id)} style={styles.controlButton}>
+                    {videoItem.isPlaying ? <Pause size={24} color="#FFFFFF" /> : <Play size={24} color="#FFFFFF" />}
+                  </TouchableOpacity>
+                  <View style={styles.progressBarPlaceholder} />
+                  <TouchableOpacity onPress={() => handleMute(videoItem.id)} style={styles.controlButton}>
+                    {videoItem.isMuted ? <VolumeX size={24} color="#FFFFFF" /> : <Volume2 size={24} color="#FFFFFF" />}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.controlButton}>
+                    <Maximize size={24} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              )}
 
-              <View style={styles.durationBadge}>
-                <Text style={styles.durationText}>{video.duration}</Text>
-              </View>
+              {/* Side Interaction Bar - Renders only if controls are visible */}
+              {controlsVisible && (
+                <View style={styles.sideInteractionBar}>
+                  <TouchableOpacity style={styles.sideButton} onPress={() => handleLike(videoItem.id)}>
+                    <Heart size={30} color={videoItem.isLiked ? "#FF3040" : "#FFFFFF"} fill={videoItem.isLiked ? "#FF3040" : "transparent"} />
+                    <Text style={[styles.sideButtonText, videoItem.isLiked && styles.likedText]}>{formatNumber(videoItem.likes)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sideButton} onPress={handleComment}>
+                    <MessageCircle size={30} color="#FFFFFF" />
+                    <Text style={styles.sideButtonText}>{formatNumber(videoItem.comments)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sideButton} onPress={() => handleShare(videoItem)}>
+                    <Share size={30} color="#FFFFFF" />
+                    <Text style={styles.sideButtonText}>{formatNumber(videoItem.shares)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sideButton} onPress={() => handleSave(videoItem.id)}>
+                    <BookOpen size={30} color="#FFFFFF" />
+                    <Text style={styles.sideButtonText}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sideButton}>
+                    <MoreHorizontal size={30} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              )}
 
-              {/* Difficulty Badge */}
-              <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(video.difficulty) }]}>
-                <Text style={styles.difficultyText}>{video.difficulty}</Text>
-              </View>
+              {/* Premium and Difficulty badges can be re-added here if desired, or in metadata section */}
+               {videoItem.isPremium && controlsVisible && (
+                <View style={[styles.premiumBadge, styles.badgeVideoOverlay]}>
+                  <Crown size={16} color={theme.colors.warning} />
+                  <Text style={styles.premiumText}>PRO</Text>
+                </View>
+              )}
+
+              {/* Quiz Trigger Cue */}
+              {quizTriggerVisible[videoItem.id] && videoItem.hasQuiz && (
+                <TouchableOpacity
+                  style={styles.quizTriggerCue}
+                  onPress={() => handleShowQuiz(videoItem)}
+                >
+                  <HelpCircle size={24} color={theme.colors.white} />
+                  <Text style={styles.quizTriggerText}>Quiz</Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
 
-            {/* Content Info - Left Side */}
-            <View style={styles.contentInfo}>
+            {/* Metadata Area - Below Video Player */}
+            <View style={styles.metadataArea}>
               <View style={styles.creatorInfo}>
-                <Image source={{ uri: video.creator.avatar }} style={styles.creatorAvatar} />
+                <Image source={{ uri: videoItem.creator.avatar }} style={styles.creatorAvatar} />
                 <View style={styles.creatorDetails}>
                   <View style={styles.creatorNameContainer}>
-                    <Text style={styles.creatorName}>{video.creator.name}</Text>
-                    {video.creator.verified && (
-                      <Star size={16} color="#8B5CF6" fill="#8B5CF6" />
+                    <Text style={styles.creatorName}>{videoItem.creator.name}</Text>
+                    {videoItem.creator.verified && (
+                      <Star size={16} color="#8B5CF6" fill="#8B5CF6" style={{ marginLeft: 4 }}/>
                     )}
                   </View>
-                  <Text style={styles.videoCategory}>{video.category}</Text>
+                  <Text style={styles.videoCategory}>{videoItem.category} • {videoItem.duration}</Text>
                 </View>
                 <TouchableOpacity style={styles.followButton}>
                   <Text style={styles.followButtonText}>Follow</Text>
                 </TouchableOpacity>
               </View>
-
-              <Text style={styles.videoTitle}>{video.title}</Text>
+              <Text style={styles.videoTitle}>{videoItem.title}</Text>
               <Text style={styles.videoDescription} numberOfLines={2}>
-                {video.description}
+                {videoItem.description}
               </Text>
-
-              {/* Tags */}
               <View style={styles.tagsContainer}>
-                {video.tags.map((tag, tagIndex) => (
+                {videoItem.tags.map((tag, tagIndex) => (
                   <View key={tagIndex} style={styles.tag}>
                     <Text style={styles.tagText}>#{tag}</Text>
                   </View>
                 ))}
+                 <View style={[styles.tag, {backgroundColor: getDifficultyColor(videoItem.difficulty)}]}>
+                    <Text style={styles.tagTextWhite}>{videoItem.difficulty}</Text>
+                  </View>
               </View>
-            </View>
-
-            {/* Action Buttons - Right Side */}
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleLike(video.id)}
-              >
-                <Heart 
-                  size={32} 
-                  color={video.isLiked ? "#FF3040" : "#FFFFFF"} 
-                  fill={video.isLiked ? "#FF3040" : "transparent"}
-                />
-                <Text style={[styles.actionText, video.isLiked && styles.likedText]}>
-                  {formatNumber(video.likes)}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={handleComment}
-              >
-                <MessageCircle size={32} color="#FFFFFF" />
-                <Text style={styles.actionText}>{formatNumber(video.comments)}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleShare(video)}
-              >
-                <Share size={32} color="#FFFFFF" />
-                <Text style={styles.actionText}>{formatNumber(video.shares)}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => handleSave(video.id)}
-              >
-                <BookOpen size={32} color="#FFFFFF" />
-                <Text style={styles.actionText}>Save</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.actionButton}>
-                <MoreHorizontal size={32} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
           </View>
         ))}
@@ -792,6 +867,50 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Migration Modal */}
+      <Modal
+        visible={showMigrationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}} // Non-dismissible by back button on Android
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.migrationModalContent}>
+            <Brain size={48} color={theme.colors.primary} style={{ alignSelf: 'center', marginBottom: 20 }} />
+            <Text style={styles.migrationModalTitle}>Edugram Just Got Smarter!</Text>
+            <Text style={styles.migrationModalText}>
+              To ensure your feed is perfectly tailored, please take a moment to
+              confirm and refine your learning interests.
+            </Text>
+            <TouchableOpacity
+              style={[styles.migrationModalButton, {backgroundColor: theme.colors.primary}]}
+              onPress={() => {
+                setShowMigrationModal(false);
+                // Simulate flag that user has been directed, actual flag after onboarding completion
+                console.log('User directed to onboarding for migration.');
+                router.push('/onboarding');
+              }}
+            >
+              <Text style={styles.migrationModalButtonText}>Update My Interests</Text>
+              <ChevronRight size={20} color={theme.colors.white} style={{ marginLeft: 8 }}/>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Quiz Overlay */}
+      {showQuizOverlay && (
+        <QuizScreen
+          videoTitle={activeQuizVideoTitle}
+          onCloseQuiz={() => {
+            setShowQuizOverlay(false);
+            setActiveQuizVideoTitle(undefined);
+            // Potentially mark quiz as "seen" for this session/video to avoid immediate re-trigger
+          }}
+          // quizData={currentVideoQuizData} // For future use
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -835,12 +954,22 @@ const styles = StyleSheet.create({
   videoContainer: {
     flex: 1,
   },
-  videoCard: {
-    height: height - 140,
-    position: 'relative',
+  videoCard: { // Renamed to videoCardOuter
+    // height: height - 140, // This will be adjusted by content below video
+    // position: 'relative', // No longer needed if metadata is below
+    backgroundColor: '#000000', // Ensure card background is black
+    paddingBottom: 10, // Space for metadata
   },
-  videoTouchable: {
-    flex: 1,
+  videoCardOuter: { // New parent for each full screen item
+    height: height - (Platform.OS === 'ios' ? 140 : 120), // Approximate full viewport minus headers/tabs
+    // backgroundColor: '#0c0c0c', // Darker background for the whole item
+    // marginBottom: 10, // if we want separation between items in scroll, though current is paging
+  },
+  videoPlayerArea: {
+    flex: 1, // Video player takes available space within its parent
+    backgroundColor: '#000000',
+    justifyContent: 'flex-end', // For bottom controls and captions
+    position: 'relative', // For positioning overlays like controls
   },
   videoBackground: {
     width: '100%',
@@ -854,10 +983,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  premiumBadge: {
+  premiumBadge: { // Original style, might need adjustment or use badgeVideoOverlay
     position: 'absolute',
-    top: 60,
-    right: 20,
+    top: 20, // Adjusted position
+    left: 20, // Adjusted position
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -871,67 +1000,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 4,
   },
-  muteButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  // muteButton, durationBadge, playingIndicator, difficultyBadge are removed as their functionality is integrated elsewhere or deferred.
+
+  // Styles for metadata area, moved below video
+  metadataArea: {
+    paddingHorizontal: 15,
+    paddingTop: 12,
+    paddingBottom: 10, // Added padding at bottom of metadata
+    backgroundColor: '#000000', // Ensure background for metadata area
   },
-  durationBadge: {
-    position: 'absolute',
-    bottom: 200,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  durationText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
-  },
-  playingIndicator: {
-    position: 'absolute',
-    top: 120,
-    left: 20,
-    backgroundColor: 'rgba(16, 185, 129, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  playingText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
-  },
-  difficultyBadge: {
-    position: 'absolute',
-    top: 120,
-    right: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  difficultyText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
-  },
-  contentInfo: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 100,
-    padding: 20,
-    paddingBottom: 120,
-  },
-  creatorInfo: {
+  creatorInfo: { // Copied from contentInfo
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
@@ -1004,28 +1082,104 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     fontSize: 12,
   },
-  actionButtons: {
+  // actionButtons renamed to sideInteractionBar
+  sideInteractionBar: {
     position: 'absolute',
-    right: 20,
-    bottom: 150,
+    right: 10,
+    bottom: 20, // Position above bottom control bar or adjust as needed
     alignItems: 'center',
+    zIndex: 10, // Ensure it's above video content if not using controlsVisible for it
   },
-  actionButton: {
+  sideButton: { // Replaces actionButton
     alignItems: 'center',
-    marginBottom: 24,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
+    marginBottom: 20, // Spacing between buttons
   },
-  actionText: {
+  sideButtonText: { // Replaces actionText
     color: '#FFFFFF',
     fontFamily: 'Inter-Medium',
     fontSize: 12,
     marginTop: 4,
     textAlign: 'center',
   },
-  likedText: {
+  likedText: { // Unchanged
     color: '#FF3040',
+  },
+
+  // New styles for Bottom Control Bar
+  bottomControlBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    zIndex: 10, // Ensure it's above video content
+  },
+  controlButton: {
+    padding: 8,
+  },
+  progressBarPlaceholder: {
+    flex: 1,
+    height: 4, // Thin bar
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 10,
+    borderRadius: 2,
+  },
+
+  // New styles for Caption Placeholder
+  captionContainer: {
+    position: 'absolute',
+    bottom: 70, // Above bottom control bar
+    left: 15,
+    right: 15,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 5,
+    zIndex: 10,
+  },
+  captionText: {
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    lineHeight: 18,
+    textAlign: 'left',
+  },
+  captionMore: {
+    fontFamily: 'Inter-SemiBold',
+    color: '#A0A0A0',
+  },
+  badgeVideoOverlay: { // General style for badges on video if controls are visible
+     backgroundColor: 'rgba(0, 0, 0, 0.7)',
+     paddingHorizontal: 10,
+     paddingVertical: 5,
+     borderRadius: 15,
+  },
+   tagTextWhite: { // For difficulty tag in metadata
+    color: '#FFFFFF',
+    fontFamily: 'Inter-Medium',
+    fontSize: 12,
+  },
+  quizTriggerCue: {
+    position: 'absolute',
+    bottom: 80, // Adjust to be above bottom controls, or in a corner
+    right: 20,
+    backgroundColor: theme.colors.primary + 'AA', // Semi-transparent primary
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borders.borderRadius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 20, // Ensure it's above other elements if controls are also visible
+  },
+  quizTriggerText: {
+    color: theme.colors.white,
+    fontFamily: theme.typography.fonts.interSemiBold,
+    fontSize: theme.typography.fontSizes.sm,
+    marginLeft: theme.spacing.xs,
   },
   modalOverlay: {
     flex: 1,
@@ -1280,5 +1434,49 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontFamily: 'Inter-Regular',
     fontSize: 16,
+  },
+  // Styles for Migration Modal
+  migrationModalContent: {
+    backgroundColor: '#1E1E1E', // Slightly different from other modals for distinction
+    marginHorizontal: 30,
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+    justifyContent: 'center', // Center content for when modalOverlay is flex-end
+  },
+  migrationModalTitle: {
+    fontSize: 22,
+    fontFamily: 'Poppins-Bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  migrationModalText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#CCCCCC',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  migrationModalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    width: '100%',
+  },
+  migrationModalButtonText: {
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
   },
 });
