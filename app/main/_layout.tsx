@@ -1,59 +1,101 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { BookOpen, Compass, Users, User as UserIcon } from 'lucide-react-native'; // User as UserIcon to avoid conflict
 import { Platform } from 'react-native';
+import { Home, Compass, PlusSquare, MessageSquare, User as UserIcon } from 'lucide-react-native';
+import theme from '../../styles/theme'; // Assuming theme is two levels up from app/main/_layout.tsx
 
 export default function TabLayout() {
+  const iconColor = theme.colors.white; // Base color for icons
+  const activeColor = theme.colors.white; // Color for active (focused) icon, can be same or different
+  const inactiveColor = theme.colors.textSecondary; // Color for inactive icons (if not just using fill)
+
   return (
     <Tabs
+      initialRouteName="index"
       screenOptions={{
-        headerShown: false, // Common practice for tabs, can be overridden per screen
-        tabBarActiveTintColor: '#8B5CF6', // Example active color
-        tabBarInactiveTintColor: '#A1A1AA', // Example inactive color
+        headerShown: false,
+        tabBarShowLabel: false, // No text labels
+        tabBarActiveTintColor: activeColor,
+        tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: {
-          backgroundColor: '#18181B', // Example tab bar background
-          borderTopColor: '#27272A',
-          height: Platform.OS === 'ios' ? 90 : 70, // Adjust height for platform
-          paddingBottom: Platform.OS === 'ios' ? 30 : 10,
-          paddingTop: 10,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontFamily: 'Inter-Medium', // Assuming Inter font is used as in RootLayout
+          backgroundColor: theme.colors.black, // Pure black background
+          borderTopWidth: 0, // No border top for a cleaner look
+          height: Platform.OS === 'ios' ? 80 : 60, // Standard height
+          paddingBottom: Platform.OS === 'ios' ? 20 : 5,
+          paddingTop: 5,
         },
       }}
-      initialRouteName="index" // Set "Learn" (index) as the default tab
     >
       <Tabs.Screen
-        name="index" // This will map to app/main/index.tsx (or root index.tsx if configured globally)
+        name="index" // Points to root index.tsx
+        href="/" // Explicitly link to root index.tsx
         options={{
-          title: 'Learn',
-          tabBarIcon: ({ color, size }) => <BookOpen color={color} size={size} />,
+          tabBarIcon: ({ focused, color, size }) => (
+            <Home
+              size={focused ? size + 2 : size}
+              color={focused ? activeColor : color}
+              fill={focused ? activeColor : 'none'}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="discover" // Will map to app/main/discover.tsx (or root discover.tsx)
+        name="discover_tab" // Use a unique name for the route if discover.tsx is also a global route
+        href="/discover"   // Points to root discover.tsx
         options={{
-          title: 'Discover',
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
+          tabBarIcon: ({ focused, color, size }) => (
+            <Compass
+              size={focused ? size + 2 : size}
+              color={focused ? activeColor : color}
+              fill={focused ? activeColor : 'none'}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="community" // Will map to app/main/community.tsx (or root community.tsx)
+        name="create_tab"
+        href="/create"    // Points to root create.tsx (to be created)
         options={{
-          title: 'Community',
-          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
+          tabBarIcon: ({ focused, color, size }) => (
+            <PlusSquare // Using PlusSquare as it's common for "create"
+              size={focused ? size + 4 : size + 2} // Make create button slightly larger
+              color={focused ? activeColor : color} // Or a distinct color like theme.colors.primary
+              fill={focused ? activeColor : 'none'}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
         }}
       />
       <Tabs.Screen
-        name="profile" // Will map to app/main/profile.tsx (or root profile.tsx)
+        name="inbox_tab"
+        href="/inbox"     // Points to root inbox.tsx (to be created)
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <UserIcon color={color} size={size} />,
+          tabBarIcon: ({ focused, color, size }) => (
+            <MessageSquare // Using MessageSquare for Inbox
+              size={focused ? size + 2 : size}
+              color={focused ? activeColor : color}
+              fill={focused ? activeColor : 'none'}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
         }}
       />
-      {/* Add a screen for index.tsx to ensure it's part of the (tabs) layout if needed */}
-      {/* <Tabs.Screen name="index" options={{ href: null }} /> */}
+      <Tabs.Screen
+        name="profile_tab"
+        href="/profile"   // Points to root profile.tsx
+        options={{
+          tabBarIcon: ({ focused, color, size }) => (
+            <UserIcon
+              size={focused ? size + 2 : size}
+              color={focused ? activeColor : color}
+              fill={focused ? activeColor : 'none'}
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

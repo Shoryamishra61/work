@@ -1,25 +1,25 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react'; // Added useCallback
 import {
   View,
-  Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  Dimensions,
-  Image,
   SafeAreaView,
   Modal,
-  TextInput,
   Animated,
   Platform,
+  Text, // Keep Text for modals, headers if any
+  Image, // Added Image for creator avatar
+  FlatList, // Added FlatList
+  Dimensions, // Added Dimensions back
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router'; // Added for navigation
-import { Play, Heart, MessageCircle, Share, BookOpen, Crown, Lock, Star, MoveHorizontal as MoreHorizontal, Volume2, VolumeX, X, Send, Pause, Filter, TrendingUp, Brain, ChevronRight, Maximize, HelpCircle } from 'lucide-react-native'; // Added Maximize, Brain, ChevronRight, HelpCircle
+import { router } from 'expo-router';
+import { Video, ResizeMode, Audio, AVPlaybackStatusSuccess, AVPlaybackStatusError, AVPlaybackStatus } from 'expo-av';
+import { Play, Pause, Brain, ChevronRight, Maximize, Heart, MessageCircle, Send, MoreVertical, Plus, Music2 } from 'lucide-react-native';
 
-// Design System & Quiz
+// Design System & Quiz (QuizScreen might be removed if not used in this specific new layout)
 import theme from './styles/theme';
-import QuizScreen from './quiz'; // Assuming quiz.tsx is at the root
+import StyledText from './components/StyledText'; // Import StyledText
+// import QuizScreen from './quiz'; // QuizScreen will be re-added if a trigger mechanism is part of this new design
 
 const { width, height } = Dimensions.get('window');
 
@@ -40,10 +40,8 @@ interface VideoContent {
   comments: number;
   shares: number;
   isPremium: boolean;
-  isLiked: boolean;
-  isMuted: boolean;
-  isPlaying: boolean;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  // isLiked, isMuted, isPlaying will be handled by expo-av state
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced'; // Retain for potential filtering
   tags: string[];
   hasQuiz?: boolean;
   quizTimestamp?: number; // Seconds into video when quiz should trigger
@@ -324,26 +322,62 @@ const mockComments: Comment[] = [
 
 export default function HomeScreen() {
   const [currentVideo, setCurrentVideo] = useState(0);
-  const [videos, setVideos] = useState(mockVideos);
-  const [comments, setComments] = useState(mockComments);
-  const [showComments, setShowComments] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [showMigrationModal, setShowMigrationModal] = useState(false); // Added for migration
-  const [controlsVisible, setControlsVisible] = useState(true); // For B4 de-clutter
+  // Most state related to old UI (comments, filters, specific video item states like isLiked) is removed.
+  // Retain state for modals if they are to be used with the new player.
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  // const [showQuizOverlay, setShowQuizOverlay] = useState(false); // If quiz is triggered from new UI
+  // const [activeQuizVideoTitle, setActiveQuizVideoTitle] = useState<string | undefined>(undefined);
 
-  // State for Quiz Overlay
-  const [showQuizOverlay, setShowQuizOverlay] = useState(false);
-  const [activeQuizVideoTitle, setActiveQuizVideoTitle] = useState<string | undefined>(undefined);
-  // const [currentVideoQuizData, setCurrentVideoQuizData] = useState<any>(null); // For actual quiz data later
-  const [quizTriggerVisible, setQuizTriggerVisible] = useState<{[videoId: string]: boolean}>({});
-  const quizTimeoutId = useRef<NodeJS.Timeout | null>(null);
+  // Video Player State
+  const videoRef = useRef<Video>(null);
+  const [isPlaying, setIsPlaying] = useState(true); // Auto-play initially
+  const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatusSuccess | null>(null);
+  const showPlayPauseIconAnim = useRef(new Animated.Value(0)).current; // Start hidden
+  const playPauseFadeTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [fadeAnim] = useState(new Animated.Value(1));
+  // Action Stack State
+  const [isFollowing, setIsFollowing] = useState(false);
+  // Initialize isLiked and likeCount from currentVideoData after it's defined
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0); // To track active video in FlatList
+
+  // Animation Values
+  const actionStackAnimX = useRef(new Animated.Value(50)).current; // Start off-screen (right)
+  const actionStackOpacityAnim = useRef(new Animated.Value(0)).current;
+  const infoBlockAnimY = useRef(new Animated.Value(50)).current; // Start off-screen (bottom)
+  const infoBlockOpacityAnim = useRef(new Animated.Value(0)).current;
+
+
+  // Use the first video for now, swiping will come later
+  // const currentVideoData = mockVideos[0]; // Replaced by FlatList's current item
+  // Ensure videoUrl is a valid streaming URL or local file URI
+  // mockVideos.forEach(v => {
+  //   if (v.videoUrl === 'sample-video') v.videoUrl = 'http://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4';
+  // });
+
+  // Ensure all videos have a valid URL for FlatList
+  const videosWithValidUrls = mockVideos.map(v => ({
+    ...v,
+    videoUrl: v.videoUrl === 'sample-video' ? 'http://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4' : v.videoUrl,
+    // Initialize isPlaying and isMuted for individual video items if needed by Video component's props directly
+    // For now, global isPlaying controls the currently active video via ref.
+  }));
+
+
+  useEffect(() => {
+    // Initialize like state from video data when component mounts or video changes
+    const videoData = videosWithValidUrls[currentVideoIndex];
+    if (videoData) {
+        setIsLiked(videoData.isLiked || false);
+        setLikeCount(videoData.likes || 0);
+        setIsFollowing(false); // Reset following state per video
+        setIsCaptionExpanded(false); // Reset caption state per video
+    }
+  }, [currentVideoIndex]);
+
 
   // Simulate checking if new onboarding is completed
   const checkIfNewOnboardingCompleted = () => {
@@ -353,525 +387,216 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    // Prevent modal from showing if already on onboarding screen (e.g. after pressing back)
-    // This is a simple check; a more robust solution might involve global state or route listeners.
+    // Configure audio mode
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true, // Important for videos to play with sound even if phone is on silent
+      staysActiveInBackground: false,
+      shouldDuckAndroid: false, // Do not reduce audio of other apps
+    });
+
+    // Logic for migration modal (can be kept or removed if not relevant to this blueprint)
     if (router.canGoBack() && router.getPathname() === '/onboarding') {
         return;
     }
-
     if (!checkIfNewOnboardingCompleted()) {
       setShowMigrationModal(true);
     }
   }, []);
 
+  const handlePlayPausePress = async () => {
+    if (!videoRef.current) return;
 
-  const handleShowQuiz = (video: VideoContent) => {
-    setActiveQuizVideoTitle(video.title);
-    // In future, load specific quiz data for video: setCurrentVideoQuizData(video.quizData);
-    setShowQuizOverlay(true);
-    setQuizTriggerVisible(prev => ({ ...prev, [video.id]: false })); // Hide trigger once quiz is shown
-  };
+    const newIsPlaying = !isPlaying;
+    setIsPlaying(newIsPlaying);
 
-  const scheduleQuizTrigger = useCallback((video: VideoContent) => {
-    if (quizTimeoutId.current) {
-      clearTimeout(quizTimeoutId.current);
-    }
-    setQuizTriggerVisible(prev => ({ ...prev, [video.id]: false })); // Hide for current video initially
-
-    if (video.hasQuiz && video.quizTimestamp && video.isPlaying) {
-      quizTimeoutId.current = setTimeout(() => {
-        console.log(`Quiz trigger for video ${video.id} at ${video.quizTimestamp}s`);
-        setQuizTriggerVisible(prev => ({ ...prev, [video.id]: true }));
-      }, video.quizTimestamp * 1000);
-    }
-  }, [videos]); // videos dependency might be broad, consider refining if videos state changes often unnecessarily
-
-  // Effect to schedule quiz trigger when current video changes or its playing state changes
-  useEffect(() => {
-    const currentVideoData = filteredVideos[currentVideo];
-    if (currentVideoData) {
-      scheduleQuizTrigger(currentVideoData);
-    }
-
-    // Cleanup timeout when component unmounts or dependencies change
-    return () => {
-      if (quizTimeoutId.current) {
-        clearTimeout(quizTimeoutId.current);
-      }
-    };
-  }, [currentVideo, filteredVideos, scheduleQuizTrigger]);
-
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  };
-
-  const handleLike = (videoId: string) => {
-    setVideos(prevVideos =>
-      prevVideos.map(video =>
-        video.id === videoId
-          ? {
-              ...video,
-              isLiked: !video.isLiked,
-              likes: video.isLiked ? video.likes - 1 : video.likes + 1,
-            }
-          : video
-      )
-    );
-  };
-
-  const handleMute = (videoId: string) => {
-    setVideos(prevVideos =>
-      prevVideos.map(video =>
-        video.id === videoId
-          ? { ...video, isMuted: !video.isMuted }
-          : video
-      )
-    );
-  };
-
-  const handlePlayPause = (videoId: string) => {
-    setVideos(prevVideos =>
-      prevVideos.map(video =>
-        video.id === videoId
-          ? { ...video, isPlaying: !video.isPlaying }
-          : { ...video, isPlaying: false }
-      )
-    );
-  };
-
-  const handlePremiumContent = (video: VideoContent) => {
-    if (video.isPremium) {
-      setShowPremiumModal(true);
+    if (newIsPlaying) {
+      await videoRef.current.playAsync();
     } else {
-      handlePlayPause(video.id);
+      await videoRef.current.pauseAsync();
+    }
+
+    // Show and fade out icon
+    Animated.timing(showPlayPauseIconAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    if (playPauseFadeTimeout.current) clearTimeout(playPauseFadeTimeout.current);
+    playPauseFadeTimeout.current = setTimeout(() => {
+      Animated.timing(showPlayPauseIconAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+    }, 1000);
+  };
+
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (status.isLoaded) {
+      setPlaybackStatus(status);
+    } else if (status.isLoaded === false && (status as AVPlaybackStatusError).error) {
+        console.error(`Video Error: ${(status as AVPlaybackStatusError).error}`);
+        setPlaybackStatus(null); // Clear status on error
     }
   };
 
-  const handleShare = (video: VideoContent) => {
-    setVideos(prevVideos =>
-      prevVideos.map(v =>
-        v.id === video.id
-          ? { ...v, shares: v.shares + 1 }
-          : v
-      )
+  const progress = playbackStatus?.durationMillis
+    ? (playbackStatus.positionMillis / playbackStatus.durationMillis) * 100
+    : 0;
+
+  const triggerOverlayAnimations = (isAppearing: boolean) => {
+    const commonConfig = { duration: 200, useNativeDriver: true };
+    Animated.parallel([
+      Animated.timing(actionStackOpacityAnim, { toValue: isAppearing ? 1 : 0, ...commonConfig }),
+      Animated.timing(actionStackAnimX, { toValue: isAppearing ? 0 : 50, ...commonConfig }),
+      Animated.timing(infoBlockOpacityAnim, { toValue: isAppearing ? 1 : 0, ...commonConfig }),
+      Animated.timing(infoBlockAnimY, { toValue: isAppearing ? 0 : 50, ...commonConfig }),
+    ]).start();
+  };
+
+  useEffect(() => {
+    // Reset and trigger animation when currentVideoIndex changes
+    actionStackOpacityAnim.setValue(0);
+    actionStackAnimX.setValue(50);
+    infoBlockOpacityAnim.setValue(0);
+    infoBlockAnimY.setValue(50);
+    triggerOverlayAnimations(true);
+  }, [currentVideoIndex]);
+
+
+  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      const newIndex = viewableItems[0].index;
+      if (newIndex !== null && newIndex !== currentVideoIndex) {
+        setCurrentVideoIndex(newIndex);
+        //setIsPlaying(true); // Auto-play new video. Note: global isPlaying, videoRef needs to target new video.
+      }
+    }
+  }, [currentVideoIndex]);
+
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50, // Item is considered viewable when 50% visible
+  };
+
+
+  const renderVideoItem = ({ item, index }: { item: VideoContent, index: number }) => {
+    const isActive = index === currentVideoIndex;
+    // Each item needs its own videoRef if we want to control them independently from the parent.
+    // For simplicity here, we're still using one main videoRef, which might be problematic for FlatList.
+    // A better approach would be to pass a ref to each VideoItem component.
+    // For now, only the active video will play based on global isPlaying state.
+
+    // This component will represent a single video item in the FlatList
+    // It will contain the Video player, info block, and action stack
+    // The animation trigger will be based on currentVideoIndex changing in the parent (HomeScreen)
+
+    const itemVideoRef = useRef<Video>(null); // Each item gets its own ref
+
+    useEffect(() => { // Control playback for THIS video item
+        if (itemVideoRef.current) {
+            if (isActive && isPlaying) { // Global isPlaying for the active video
+                itemVideoRef.current.playAsync();
+            } else {
+                itemVideoRef.current.pauseAsync();
+            }
+        }
+    }, [isActive, isPlaying]);
+
+
+    return (
+      <View style={styles.videoPlayerContainer}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handlePlayPausePress}>
+            <Video
+              ref={itemVideoRef} // Use item-specific ref
+              style={StyleSheet.absoluteFill}
+              source={{ uri: item.videoUrl }}
+              shouldPlay={isActive && isPlaying} // Only active video plays
+              isMuted={isActive ? false : true} // Only active video is unmuted (global isMuted could be better)
+              isLooping
+              resizeMode={ResizeMode.COVER}
+              onPlaybackStatusUpdate={isActive ? onPlaybackStatusUpdate : undefined} // Only update status for active video
+            />
+             <Animated.View style={[styles.playPauseIconContainer, { opacity: isActive ? showPlayPauseIconAnim : 0}]}>
+              {isPlaying ? ( // This reflects global isPlaying, might need adjustment for individual items
+                <Pause size={64} color="rgba(255, 255, 255, 0.7)" />
+              ) : (
+                <Play size={64} color="rgba(255, 255, 255, 0.7)" />
+              )}
+            </Animated.View>
+
+            {/* Info Block - Animated */}
+            <Animated.View style={[styles.infoBlockContainer, { opacity: infoBlockOpacityAnim, transform: [{ translateY: infoBlockAnimY }] }]}>
+              <StyledText variant="button" fontWeight="semiBold" style={styles.creatorHandle}>
+                @{item.creator.name.toLowerCase().replace(/\s+/g, '')}
+              </StyledText>
+              <View style={styles.captionTextContainer}>
+                <StyledText variant="body" color="white" numberOfLines={isCaptionExpanded ? undefined : 1} style={styles.captionFullText}>
+                  {item.description}
+                </StyledText>
+                {!isCaptionExpanded && item.description.length > 40 && (
+                    <StyledText variant="body" color="textSecondary" style={styles.captionMoreButton} onPress={(e) => { e.stopPropagation(); setIsCaptionExpanded(true); }}>
+                    ...more
+                    </StyledText>
+                )}
+              </View>
+              <TouchableOpacity style={styles.audioInfoContainer} onPress={() => console.log("Navigate to audio page")}>
+                <Music2 size={16} color={theme.colors.white} style={{ marginRight: theme.spacing.sm }} />
+                <StyledText variant="small" color="white" numberOfLines={1} style={{ flex: 1 }}>
+                  Original Audio - {item.creator.name} - {item.title}
+                </StyledText>
+              </TouchableOpacity>
+            </Animated.View>
+
+            {/* Action Stack - Animated */}
+            <Animated.View style={[styles.actionStackContainer, { opacity: actionStackOpacityAnim, transform: [{ translateX: actionStackAnimX }] }]}>
+              <TouchableOpacity style={styles.actionStackItem} onPress={() => console.log("Profile: ", item.creator.name)}>
+                <Image source={{ uri: item.creator.avatar }} style={styles.creatorAvatar} />
+                {/* Follow button logic needs to be per-item if state is not global */}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionStackItem} onPress={() => console.log("Like: ", item.id) /* Update global/item like state */}>
+                <Heart size={30} color={isLiked && item.id === videosWithValidUrls[currentVideoIndex]?.id ? theme.colors.error : theme.colors.white} fill={isLiked && item.id === videosWithValidUrls[currentVideoIndex]?.id ? theme.colors.error : theme.colors.transparent} />
+                <StyledText variant="small" color="white" style={{ marginTop: theme.spacing.xs }}>{item.likes}</StyledText>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionStackItem} onPress={() => console.log("Comment: ", item.id)}>
+                <MessageCircle size={30} color={theme.colors.white} />
+                <StyledText variant="small" color="white" style={{ marginTop: theme.spacing.xs }}>{item.comments}</StyledText>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionStackItem} onPress={() => console.log("Share: ", item.id)}>
+                <Send size={30} color={theme.colors.white} />
+                <StyledText variant="small" color="white" style={{ marginTop: theme.spacing.xs }}>Share</StyledText>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionStackItem} onPress={() => console.log("More: ", item.id)}>
+                <MoreVertical size={30} color={theme.colors.white} />
+              </TouchableOpacity>
+            </Animated.View>
+
+            {isActive && (
+                <View style={styles.progressBarContainer}>
+                    <View style={[styles.progressBar, { width: `${progress}%` }]} />
+                </View>
+            )}
+        </TouchableOpacity>
+      </View>
     );
-
-    if (Platform.OS === 'web') {
-      alert(`Shared: ${video.title}`);
-    }
   };
 
-  const handleComment = () => {
-    setShowComments(true);
-  };
-
-  const submitComment = () => {
-    if (newComment.trim()) {
-      const newCommentObj: Comment = {
-        id: Date.now().toString(),
-        user: 'You',
-        avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=100',
-        text: newComment.trim(),
-        timestamp: 'now',
-        likes: 0,
-      };
-      
-      setComments(prevComments => [newCommentObj, ...prevComments]);
-      
-      const currentVideoData = filteredVideos[currentVideo] || videos[0];
-      setVideos(prevVideos =>
-        prevVideos.map(video =>
-          video.id === currentVideoData.id
-            ? { ...video, comments: video.comments + 1 }
-            : video
-        )
-      );
-      
-      setNewComment('');
-      setShowComments(false);
-    }
-  };
-
-  const handleSave = (videoId: string) => {
-    if (Platform.OS === 'web') {
-      alert('Video saved to your library!');
-    }
-  };
-
-  const filteredVideos = videos.filter(video => {
-    if (selectedDifficulty && video.difficulty !== selectedDifficulty) return false;
-    if (selectedCategory && video.category !== selectedCategory) return false;
-    return true;
-  });
-
-  const video = filteredVideos[currentVideo] || videos[0];
-
-  const categories = ['All', 'Web Development', 'AI & ML', 'Data Science', 'DevOps', 'Backend'];
-  const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Filters */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Learn</Text>
-        <TouchableOpacity 
-          style={styles.filterButton}
-          onPress={() => setShowFilters(true)}
-        >
-          <Filter size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.videoContainer}
+      <FlatList
+        data={videosWithValidUrls}
+        renderItem={renderVideoItem}
+        keyExtractor={(item) => item.id}
         pagingEnabled
         showsVerticalScrollIndicator={false}
-        snapToInterval={height - 140}
-        decelerationRate="fast"
-        onMomentumScrollEnd={(event) => {
-          const index = Math.round(event.nativeEvent.contentOffset.y / (height - 140));
-          setCurrentVideo(index);
-          
-          setVideos(prevVideos =>
-            prevVideos.map((v, i) => ({
-              ...v,
-              isPlaying: i === index && !v.isPremium
-            }))
-          );
-        }}
-      >
-        {filteredVideos.map((videoItem, index) => (
-          <View key={videoItem.id} style={styles.videoCardOuter}>
-            <TouchableOpacity
-              style={styles.videoPlayerArea}
-              onPress={() => {
-                // Toggle controls visibility first
-                setControlsVisible(!controlsVisible);
-                // Then, if video is not premium and controls are about to become visible (or were just made visible),
-                // and video is not playing, one might want to play it.
-                // However, the primary action of tap is now toggling controls.
-                // Original premium check logic:
-                // if (videoItem.isPremium) {
-                //   setShowPremiumModal(true);
-                // } else {
-                //  handlePlayPause(videoItem.id); // This would play/pause directly
-                // }
-              }}
-              activeOpacity={1} // Ensure full opacity for the touchable area
-            >
-              <Image source={{ uri: videoItem.thumbnail }} style={styles.videoBackground} />
-              
-              {/* Removed videoOverlay LinearGradient, can be added back if needed for contrast with text/icons */}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        getItemLayout={(_data, index) => ({
+            length: height, // Assuming full screen height for each item
+            offset: height * index,
+            index,
+        })}
+      />
 
-              {/* Caption Placeholder - Renders only if controls are visible */}
-              {controlsVisible && (
-                <View style={styles.captionContainer}>
-                  <Text style={styles.captionText} numberOfLines={2}>
-                    This is a placeholder for two lines of captions. Lorem ipsum dolor sit amet... <Text style={styles.captionMore}>more</Text>
-                  </Text>
-                </View>
-              )}
-
-              {/* Bottom Control Bar - Renders only if controls are visible */}
-              {controlsVisible && (
-                <View style={styles.bottomControlBar}>
-                  <TouchableOpacity onPress={() => handlePlayPause(videoItem.id)} style={styles.controlButton}>
-                    {videoItem.isPlaying ? <Pause size={24} color="#FFFFFF" /> : <Play size={24} color="#FFFFFF" />}
-                  </TouchableOpacity>
-                  <View style={styles.progressBarPlaceholder} />
-                  <TouchableOpacity onPress={() => handleMute(videoItem.id)} style={styles.controlButton}>
-                    {videoItem.isMuted ? <VolumeX size={24} color="#FFFFFF" /> : <Volume2 size={24} color="#FFFFFF" />}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.controlButton}>
-                    <Maximize size={24} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Side Interaction Bar - Renders only if controls are visible */}
-              {controlsVisible && (
-                <View style={styles.sideInteractionBar}>
-                  <TouchableOpacity style={styles.sideButton} onPress={() => handleLike(videoItem.id)}>
-                    <Heart size={30} color={videoItem.isLiked ? "#FF3040" : "#FFFFFF"} fill={videoItem.isLiked ? "#FF3040" : "transparent"} />
-                    <Text style={[styles.sideButtonText, videoItem.isLiked && styles.likedText]}>{formatNumber(videoItem.likes)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.sideButton} onPress={handleComment}>
-                    <MessageCircle size={30} color="#FFFFFF" />
-                    <Text style={styles.sideButtonText}>{formatNumber(videoItem.comments)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.sideButton} onPress={() => handleShare(videoItem)}>
-                    <Share size={30} color="#FFFFFF" />
-                    <Text style={styles.sideButtonText}>{formatNumber(videoItem.shares)}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.sideButton} onPress={() => handleSave(videoItem.id)}>
-                    <BookOpen size={30} color="#FFFFFF" />
-                    <Text style={styles.sideButtonText}>Save</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.sideButton}>
-                    <MoreHorizontal size={30} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Premium and Difficulty badges can be re-added here if desired, or in metadata section */}
-               {videoItem.isPremium && controlsVisible && (
-                <View style={[styles.premiumBadge, styles.badgeVideoOverlay]}>
-                  <Crown size={16} color={theme.colors.warning} />
-                  <Text style={styles.premiumText}>PRO</Text>
-                </View>
-              )}
-
-              {/* Quiz Trigger Cue */}
-              {quizTriggerVisible[videoItem.id] && videoItem.hasQuiz && (
-                <TouchableOpacity
-                  style={styles.quizTriggerCue}
-                  onPress={() => handleShowQuiz(videoItem)}
-                >
-                  <HelpCircle size={24} color={theme.colors.white} />
-                  <Text style={styles.quizTriggerText}>Quiz</Text>
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-
-            {/* Metadata Area - Below Video Player */}
-            <View style={styles.metadataArea}>
-              <View style={styles.creatorInfo}>
-                <Image source={{ uri: videoItem.creator.avatar }} style={styles.creatorAvatar} />
-                <View style={styles.creatorDetails}>
-                  <View style={styles.creatorNameContainer}>
-                    <Text style={styles.creatorName}>{videoItem.creator.name}</Text>
-                    {videoItem.creator.verified && (
-                      <Star size={16} color="#8B5CF6" fill="#8B5CF6" style={{ marginLeft: 4 }}/>
-                    )}
-                  </View>
-                  <Text style={styles.videoCategory}>{videoItem.category} • {videoItem.duration}</Text>
-                </View>
-                <TouchableOpacity style={styles.followButton}>
-                  <Text style={styles.followButtonText}>Follow</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.videoTitle}>{videoItem.title}</Text>
-              <Text style={styles.videoDescription} numberOfLines={2}>
-                {videoItem.description}
-              </Text>
-              <View style={styles.tagsContainer}>
-                {videoItem.tags.map((tag, tagIndex) => (
-                  <View key={tagIndex} style={styles.tag}>
-                    <Text style={styles.tagText}>#{tag}</Text>
-                  </View>
-                ))}
-                 <View style={[styles.tag, {backgroundColor: getDifficultyColor(videoItem.difficulty)}]}>
-                    <Text style={styles.tagTextWhite}>{videoItem.difficulty}</Text>
-                  </View>
-              </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Filters Modal */}
-      <Modal
-        visible={showFilters}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowFilters(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.filtersModal}>
-            <View style={styles.filtersHeader}>
-              <Text style={styles.filtersTitle}>Filter Content</Text>
-              <TouchableOpacity onPress={() => setShowFilters(false)}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Difficulty Level</Text>
-              <View style={styles.filterOptions}>
-                {difficulties.map((difficulty) => (
-                  <TouchableOpacity
-                    key={difficulty}
-                    style={[
-                      styles.filterOption,
-                      (selectedDifficulty === difficulty || (difficulty === 'All' && !selectedDifficulty)) && styles.filterOptionSelected
-                    ]}
-                    onPress={() => setSelectedDifficulty(difficulty === 'All' ? '' : difficulty)}
-                  >
-                    <Text style={[
-                      styles.filterOptionText,
-                      (selectedDifficulty === difficulty || (difficulty === 'All' && !selectedDifficulty)) && styles.filterOptionTextSelected
-                    ]}>
-                      {difficulty}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.filterSection}>
-              <Text style={styles.filterSectionTitle}>Category</Text>
-              <View style={styles.filterOptions}>
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.filterOption,
-                      (selectedCategory === category || (category === 'All' && !selectedCategory)) && styles.filterOptionSelected
-                    ]}
-                    onPress={() => setSelectedCategory(category === 'All' ? '' : category)}
-                  >
-                    <Text style={[
-                      styles.filterOptionText,
-                      (selectedCategory === category || (category === 'All' && !selectedCategory)) && styles.filterOptionTextSelected
-                    ]}>
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.applyFiltersButton}
-              onPress={() => setShowFilters(false)}
-            >
-              <Text style={styles.applyFiltersText}>Apply Filters</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Comments Modal */}
-      <Modal
-        visible={showComments}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowComments(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.commentsModal}>
-            <View style={styles.commentsHeader}>
-              <Text style={styles.commentsTitle}>Comments ({comments.length})</Text>
-              <TouchableOpacity onPress={() => setShowComments(false)}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.commentsList}>
-              {comments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <Image source={{ uri: comment.avatar }} style={styles.commentAvatar} />
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentUser}>{comment.user}</Text>
-                      <Text style={styles.commentTime}>{comment.timestamp}</Text>
-                    </View>
-                    <Text style={styles.commentText}>{comment.text}</Text>
-                    <View style={styles.commentActions}>
-                      <TouchableOpacity style={styles.commentLike}>
-                        <Heart size={16} color="#666666" />
-                        <Text style={styles.commentLikeText}>{comment.likes}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity>
-                        <Text style={styles.replyText}>Reply</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-
-            <View style={styles.commentInput}>
-              <TextInput
-                style={styles.commentTextInput}
-                placeholder="Add a comment..."
-                placeholderTextColor="#666666"
-                value={newComment}
-                onChangeText={setNewComment}
-                multiline
-              />
-              <TouchableOpacity 
-                style={[styles.sendButton, newComment.trim() && styles.sendButtonActive]}
-                onPress={submitComment}
-                disabled={!newComment.trim()}
-              >
-                <Send size={20} color={newComment.trim() ? "#8B5CF6" : "#666666"} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Premium Modal */}
-      <Modal
-        visible={showPremiumModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPremiumModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.premiumModalContent}>
-            <LinearGradient
-              colors={['#8B5CF6', '#7C3AED']}
-              style={styles.premiumModalHeader}
-            >
-              <Crown size={60} color="#FFD700" />
-              <Text style={styles.premiumModalTitle}>Unlock Premium Content</Text>
-              <Text style={styles.premiumModalSubtitle}>
-                Get access to advanced tutorials and exclusive content
-              </Text>
-            </LinearGradient>
-
-            <View style={styles.premiumFeatures}>
-              <View style={styles.premiumFeature}>
-                <Star size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Unlimited premium videos</Text>
-              </View>
-              <View style={styles.premiumFeature}>
-                <BookOpen size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Downloadable resources</Text>
-              </View>
-              <View style={styles.premiumFeature}>
-                <Heart size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Ad-free experience</Text>
-              </View>
-              <View style={styles.premiumFeature}>
-                <MessageCircle size={20} color="#FFD700" />
-                <Text style={styles.premiumFeatureText}>Priority support</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.upgradeButton}>
-              <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
-                style={styles.upgradeButtonGradient}
-              >
-                <Text style={styles.upgradeButtonText}>Start Free Trial - $5.99/month</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.closeModalButton}
-              onPress={() => setShowPremiumModal(false)}
-            >
-              <Text style={styles.closeModalText}>Maybe Later</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Migration Modal */}
+      {/* Modals can be kept if they are globally triggered and not part of the reel UI itself */}
+      {/* For example, Migration Modal: */}
       <Modal
         visible={showMigrationModal}
         transparent={true}
+        animationType="fade"
         animationType="fade"
         onRequestClose={() => {}} // Non-dismissible by back button on Android
       >
@@ -887,7 +612,6 @@ export default function HomeScreen() {
               style={[styles.migrationModalButton, {backgroundColor: theme.colors.primary}]}
               onPress={() => {
                 setShowMigrationModal(false);
-                // Simulate flag that user has been directed, actual flag after onboarding completion
                 console.log('User directed to onboarding for migration.');
                 router.push('/onboarding');
               }}
@@ -899,584 +623,162 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Quiz Overlay */}
-      {showQuizOverlay && (
+      {/* Quiz Overlay - Can be re-added if triggered from this new player UI */}
+      {/* {showQuizOverlay && (
         <QuizScreen
           videoTitle={activeQuizVideoTitle}
           onCloseQuiz={() => {
             setShowQuizOverlay(false);
             setActiveQuizVideoTitle(undefined);
-            // Potentially mark quiz as "seen" for this session/video to avoid immediate re-trigger
           }}
-          // quizData={currentVideoQuizData} // For future use
         />
-      )}
+      )} */}
     </SafeAreaView>
   );
 }
 
-function getDifficultyColor(difficulty: string) {
-  switch (difficulty) {
-    case 'Beginner': return '#10B981';
-    case 'Intermediate': return '#F59E0B';
-    case 'Advanced': return '#EF4444';
-    default: return '#6B7280';
-  }
-}
+// Removed getDifficultyColor as it's not used in the new player-focused UI directly
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.black, // Use theme color
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-    backgroundColor: '#000000',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-  },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1a1a1a',
+  videoPlayerContainer: { // New container for Video and its controls
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.black,
   },
-  videoContainer: {
-    flex: 1,
+  playPauseIconContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1, // Ensure icon is tappable over video
   },
-  videoCard: { // Renamed to videoCardOuter
-    // height: height - 140, // This will be adjusted by content below video
-    // position: 'relative', // No longer needed if metadata is below
-    backgroundColor: '#000000', // Ensure card background is black
-    paddingBottom: 10, // Space for metadata
-  },
-  videoCardOuter: { // New parent for each full screen item
-    height: height - (Platform.OS === 'ios' ? 140 : 120), // Approximate full viewport minus headers/tabs
-    // backgroundColor: '#0c0c0c', // Darker background for the whole item
-    // marginBottom: 10, // if we want separation between items in scroll, though current is paging
-  },
-  videoPlayerArea: {
-    flex: 1, // Video player takes available space within its parent
-    backgroundColor: '#000000',
-    justifyContent: 'flex-end', // For bottom controls and captions
-    position: 'relative', // For positioning overlays like controls
-  },
-  videoBackground: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  videoOverlay: {
+  progressBarContainer: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
+    height: Platform.OS === 'ios' ? 20 : 10, // More space on iOS for home indicator
+    paddingBottom: Platform.OS === 'ios' ? 15 : 0, // Avoid home indicator
+    justifyContent: 'flex-end', // Align progress bar to the very bottom of this container
   },
-  premiumBadge: { // Original style, might need adjustment or use badgeVideoOverlay
+  progressBar: {
+    height: 2,
+    backgroundColor: theme.colors.primary, // Use theme color
+  },
+  actionStackContainer: {
     position: 'absolute',
-    top: 20, // Adjusted position
-    left: 20, // Adjusted position
-    flexDirection: 'row',
+    right: theme.spacing.md, // 16px
+    bottom: 80, // Placeholder, adjust based on final Nav Bar height
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    zIndex: 2,
   },
-  premiumText: {
-    color: '#FFD700',
-    fontFamily: 'Inter-Bold',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  // muteButton, durationBadge, playingIndicator, difficultyBadge are removed as their functionality is integrated elsewhere or deferred.
-
-  // Styles for metadata area, moved below video
-  metadataArea: {
-    paddingHorizontal: 15,
-    paddingTop: 12,
-    paddingBottom: 10, // Added padding at bottom of metadata
-    backgroundColor: '#000000', // Ensure background for metadata area
-  },
-  creatorInfo: { // Copied from contentInfo
-    flexDirection: 'row',
+  actionStackItem: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.lg, // 24px spacing between items
   },
   creatorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: theme.colors.white,
   },
-  creatorDetails: {
-    flex: 1,
-  },
-  creatorNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  creatorName: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
-    marginRight: 6,
-  },
-  videoCategory: {
-    color: '#CCCCCC',
-    fontFamily: 'Inter-Regular',
-    fontSize: 14,
-    marginTop: 2,
-  },
-  followButton: {
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  followButtonText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 14,
-  },
-  videoTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 18,
-    marginBottom: 8,
-  },
-  videoDescription: {
-    color: '#CCCCCC',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  tag: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#8B5CF6',
-  },
-  tagText: {
-    color: '#8B5CF6',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
-  },
-  // actionButtons renamed to sideInteractionBar
-  sideInteractionBar: {
+  followPlusButton: {
     position: 'absolute',
-    right: 10,
-    bottom: 20, // Position above bottom control bar or adjust as needed
-    alignItems: 'center',
-    zIndex: 10, // Ensure it's above video content if not using controlsVisible for it
-  },
-  sideButton: { // Replaces actionButton
-    alignItems: 'center',
-    marginBottom: 20, // Spacing between buttons
-  },
-  sideButtonText: { // Replaces actionText
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  likedText: { // Unchanged
-    color: '#FF3040',
-  },
-
-  // New styles for Bottom Control Bar
-  bottomControlBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    zIndex: 10, // Ensure it's above video content
-  },
-  controlButton: {
-    padding: 8,
-  },
-  progressBarPlaceholder: {
-    flex: 1,
-    height: 4, // Thin bar
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    marginHorizontal: 10,
-    borderRadius: 2,
-  },
-
-  // New styles for Caption Placeholder
-  captionContainer: {
-    position: 'absolute',
-    bottom: 70, // Above bottom control bar
-    left: 15,
-    right: 15,
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 5,
-    zIndex: 10,
-  },
-  captionText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    fontSize: 14,
-    lineHeight: 18,
-    textAlign: 'left',
-  },
-  captionMore: {
-    fontFamily: 'Inter-SemiBold',
-    color: '#A0A0A0',
-  },
-  badgeVideoOverlay: { // General style for badges on video if controls are visible
-     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-     paddingHorizontal: 10,
-     paddingVertical: 5,
-     borderRadius: 15,
-  },
-   tagTextWhite: { // For difficulty tag in metadata
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
-  },
-  quizTriggerCue: {
-    position: 'absolute',
-    bottom: 80, // Adjust to be above bottom controls, or in a corner
-    right: 20,
-    backgroundColor: theme.colors.primary + 'AA', // Semi-transparent primary
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borders.borderRadius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 20, // Ensure it's above other elements if controls are also visible
-  },
-  quizTriggerText: {
-    color: theme.colors.white,
-    fontFamily: theme.typography.fonts.interSemiBold,
-    fontSize: theme.typography.fontSizes.sm,
-    marginLeft: theme.spacing.xs,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
-  },
-  filtersModal: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    paddingTop: 20,
-  },
-  filtersHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333333',
-  },
-  filtersTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Poppins-Bold',
-    fontSize: 18,
-  },
-  filterSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  filterSectionTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  filterOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  filterOption: {
-    backgroundColor: '#333333',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  filterOptionSelected: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
-  },
-  filterOptionText: {
-    color: '#CCCCCC',
-    fontFamily: 'Inter-Medium',
-    fontSize: 14,
-  },
-  filterOptionTextSelected: {
-    color: '#FFFFFF',
-  },
-  applyFiltersButton: {
-    backgroundColor: '#8B5CF6',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
-  applyFiltersText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 16,
-  },
-  commentsModal: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingTop: 20,
-  },
-  commentsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333333',
-  },
-  commentsTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 18,
-  },
-  commentsList: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  commentItem: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-  },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 12,
-  },
-  commentContent: {
-    flex: 1,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  commentUser: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-SemiBold',
-    fontSize: 14,
-    marginRight: 8,
-  },
-  commentTime: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 12,
-  },
-  commentText: {
-    color: '#CCCCCC',
-    fontFamily: 'Inter-Regular',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  commentActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  commentLike: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  commentLikeText: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  replyText: {
-    color: '#666666',
-    fontFamily: 'Inter-Medium',
-    fontSize: 12,
-  },
-  commentInput: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333333',
-  },
-  commentTextInput: {
-    flex: 1,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    maxHeight: 100,
-    marginRight: 12,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2a2a2a',
+    bottom: -2,
+    right: -2,
+    backgroundColor: theme.colors.primary,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.white,
   },
-  sendButtonActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+  infoBlockContainer: {
+    position: 'absolute',
+    bottom: 60, // Placeholder, adjust based on final Nav Bar height
+    left: theme.spacing.md, // 16px
+    right: width * 0.25, // Allow space for action stack on right, and some margin
+    zIndex: 2,
   },
-  premiumModalContent: {
-    backgroundColor: '#1a1a1a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
+  creatorHandle: {
+    color: theme.colors.white, // Direct color from theme
+    marginBottom: theme.spacing.sm,
+    // fontWeight is part of StyledText variant="button" or can be passed directly
   },
-  premiumModalHeader: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
+  captionTextContainer: {
+    flexDirection: 'row', // To have "...more" on the same line if not expanded and text is short
+    alignItems: 'flex-end', // Align "more" button with bottom of text line
+    marginBottom: theme.spacing.sm,
   },
-  premiumModalTitle: {
-    color: '#FFFFFF',
-    fontFamily: 'Poppins-Bold',
-    fontSize: 24,
-    marginTop: 16,
-    textAlign: 'center',
+  captionFullText: {
+     flexShrink: 1, // Allow text to take available space before "more"
   },
-  premiumModalSubtitle: {
-    color: '#CCCCCC',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    marginTop: 8,
-    textAlign: 'center',
+  captionMoreButton: {
+    color: theme.colors.textSecondary, // Distinct color for "more"
+    marginLeft: theme.spacing.xs, // Space before "more"
+    // fontWeight: theme.typography.fontWeights.semiBold, // Make "more" stand out
   },
-  premiumFeatures: {
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-  },
-  premiumFeature: {
+  audioInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    // backgroundColor: 'rgba(0,0,0,0.2)', // Optional subtle background for readability
+    paddingVertical: theme.spacing.xs,
   },
-  premiumFeatureText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-    marginLeft: 12,
-  },
-  upgradeButton: {
-    marginHorizontal: 20,
-    borderRadius: 25,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  upgradeButtonGradient: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  upgradeButtonText: {
-    color: '#FFFFFF',
-    fontFamily: 'Inter-Bold',
-    fontSize: 18,
-  },
-  closeModalButton: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    marginBottom: 20,
-  },
-  closeModalText: {
-    color: '#666666',
-    fontFamily: 'Inter-Regular',
-    fontSize: 16,
-  },
-  // Styles for Migration Modal
+  // Minimal styles for modals if kept, or they can be removed if not used.
+  // The subtask focuses on the video player, so other UI elements are secondary.
   migrationModalContent: {
     backgroundColor: '#1E1E1E', // Slightly different from other modals for distinction
     marginHorizontal: 30,
-    padding: 30,
-    borderRadius: 20,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borders.borderRadius.lg,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: theme.colors.black,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
-    justifyContent: 'center', // Center content for when modalOverlay is flex-end
+    justifyContent: 'center',
   },
-  migrationModalTitle: {
-    fontSize: 22,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
+  migrationModalTitle: { // Example of using theme, but these styles are not the focus
+    fontSize: theme.typography.fontSizes.h3,
+    fontFamily: theme.typography.fonts.poppinsBold,
+    color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.sm,
   },
   migrationModalText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
+    fontSize: theme.typography.fontSizes.md,
+    fontFamily: theme.typography.fonts.interRegular,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: theme.spacing.lg,
+    lineHeight: theme.typography.fontSizes.md * theme.typography.lineHeights.normal,
   },
-  migrationModalButton: {
+  migrationModalButton: { // Example of using theme
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 14,
-    paddingHorizontal: 30,
-    borderRadius: 25,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borders.borderRadius.pill,
     width: '100%',
   },
   migrationModalButtonText: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
+    fontSize: theme.typography.fontSizes.lg,
+    fontFamily: theme.typography.fonts.poppinsSemiBold,
+    color: theme.colors.white,
+  },
+   modalOverlay: { // Kept for modals
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center', // Changed to center for modals like migration
+    alignItems: 'center',
   },
 });
