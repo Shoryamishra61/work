@@ -12,7 +12,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { ChevronRight, BookOpen, Brain, Code, TrendingUp, Palette, Wrench, Smartphone, ChartBar as BarChart3 } from 'lucide-react-native';
 
+// Design System Components
+import StyledText from '../components/StyledText'; // Assuming components is a sibling of parent of onboarding if onboarding is in a folder
+import StyledButton from '../components/StyledButton'; // Or './components/StyledButton' if onboarding.tsx is at root
+import theme from '../styles/theme'; // Or './styles/theme'
+
 const { width, height } = Dimensions.get('window');
+
+interface SubTopic {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface Domain {
   id: string;
@@ -20,17 +31,112 @@ interface Domain {
   icon: any;
   color: string;
   description: string;
+  subTopics: SubTopic[];
+}
+
+interface SelectedDomainInfo {
+  id: string;
+  subTopics: string[];
+  difficulty: string;
 }
 
 const domains: Domain[] = [
-  { id: 'ai-ml', name: 'AI & Machine Learning', icon: Brain, color: '#8B5CF6', description: 'Neural networks, deep learning, AI algorithms' },
-  { id: 'web-dev', name: 'Web Development', icon: Code, color: '#3B82F6', description: 'React, JavaScript, HTML/CSS, frameworks' },
-  { id: 'mobile-dev', name: 'Mobile Development', icon: Smartphone, color: '#10B981', description: 'React Native, iOS, Android development' },
-  { id: 'data-science', name: 'Data Science', icon: BarChart3, color: '#F59E0B', description: 'Python, analytics, visualization, statistics' },
-  { id: 'design', name: 'UI/UX Design', icon: Palette, color: '#EF4444', description: 'Figma, design systems, user experience' },
-  { id: 'devops', name: 'DevOps & Cloud', icon: Wrench, color: '#6B7280', description: 'AWS, Docker, CI/CD, infrastructure' },
-  { id: 'business', name: 'Business & Finance', icon: TrendingUp, color: '#EC4899', description: 'Entrepreneurship, investing, marketing' },
-  { id: 'general', name: 'General Tech', icon: BookOpen, color: '#14B8A6', description: 'Programming fundamentals, career advice' },
+  {
+    id: 'ai-ml',
+    name: 'AI & Machine Learning',
+    icon: Brain,
+    color: '#8B5CF6',
+    description: 'Neural networks, deep learning, AI algorithms',
+    subTopics: [
+      { id: 'beginner-concepts', name: 'Beginner Concepts' },
+      { id: 'python-for-ai', name: 'Python for AI' },
+      { id: 'neural-networks', name: 'Neural Networks' },
+    ],
+  },
+  {
+    id: 'web-dev',
+    name: 'Web Development',
+    icon: Code,
+    color: '#3B82F6',
+    description: 'React, JavaScript, HTML/CSS, frameworks',
+    subTopics: [
+      { id: 'frontend', name: 'Frontend Frameworks' },
+      { id: 'backend', name: 'Backend Development' },
+      { id: 'fullstack', name: 'Full-Stack Development' },
+    ],
+  },
+  {
+    id: 'mobile-dev',
+    name: 'Mobile Development',
+    icon: Smartphone,
+    color: '#10B981',
+    description: 'React Native, iOS, Android development',
+    subTopics: [
+      { id: 'react-native', name: 'React Native' },
+      { id: 'swift-ios', name: 'Swift (iOS)' },
+      { id: 'kotlin-android', name: 'Kotlin (Android)' },
+    ],
+  },
+  {
+    id: 'data-science',
+    name: 'Data Science',
+    icon: BarChart3,
+    color: '#F59E0B',
+    description: 'Python, analytics, visualization, statistics',
+    subTopics: [
+      { id: 'data-analysis', name: 'Data Analysis' },
+      { id: 'machine-learning-models', name: 'Machine Learning Models' },
+      { id: 'data-visualization', name: 'Data Visualization' },
+    ],
+  },
+  {
+    id: 'design',
+    name: 'UI/UX Design',
+    icon: Palette,
+    color: '#EF4444',
+    description: 'Figma, design systems, user experience',
+    subTopics: [
+      { id: 'user-research', name: 'User Research' },
+      { id: 'wireframing-prototyping', name: 'Wireframing & Prototyping' },
+      { id: 'visual-design', name: 'Visual Design' },
+    ],
+  },
+  {
+    id: 'devops',
+    name: 'DevOps & Cloud',
+    icon: Wrench,
+    color: '#6B7280',
+    description: 'AWS, Docker, CI/CD, infrastructure',
+    subTopics: [
+      { id: 'aws', name: 'Amazon Web Services (AWS)' },
+      { id: 'docker-kubernetes', name: 'Docker & Kubernetes' },
+      { id: 'ci-cd', name: 'CI/CD Pipelines' },
+    ],
+  },
+  {
+    id: 'business',
+    name: 'Business & Finance',
+    icon: TrendingUp,
+    color: '#EC4899',
+    description: 'Entrepreneurship, investing, marketing',
+    subTopics: [
+      { id: 'startups', name: 'Startups & Entrepreneurship' },
+      { id: 'personal-finance', name: 'Personal Finance' },
+      { id: 'digital-marketing', name: 'Digital Marketing' },
+    ],
+  },
+  {
+    id: 'general',
+    name: 'General Tech',
+    icon: BookOpen,
+    color: '#14B8A6',
+    description: 'Programming fundamentals, career advice',
+    subTopics: [
+      { id: 'coding-basics', name: 'Coding Basics' },
+      { id: 'tech-careers', name: 'Tech Career Paths' },
+      { id: 'emerging-tech', name: 'Emerging Technologies' },
+    ],
+  },
 ];
 
 const difficultyLevels = [
@@ -41,45 +147,68 @@ const difficultyLevels = [
 
 export default function OnboardingScreen() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
+  const [selectedDomains, setSelectedDomains] = useState<SelectedDomainInfo[]>([]);
 
   const handleDomainToggle = (domainId: string) => {
-    setSelectedDomains(prev => 
-      prev.includes(domainId) 
-        ? prev.filter(id => id !== domainId)
-        : [...prev, domainId]
-    );
+    setSelectedDomains(prev => {
+      const existingDomain = prev.find(d => d.id === domainId);
+      if (existingDomain) {
+        return prev.filter(d => d.id !== domainId);
+      } else {
+        return [...prev, { id: domainId, subTopics: [], difficulty: '' }];
+      }
+    });
   };
 
   const handleNext = () => {
-    if (currentStep === 0) {
-      setCurrentStep(1);
-    } else if (currentStep === 1) {
-      setCurrentStep(2);
+    const totalSteps = 2 + selectedDomains.length;
+
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
     } else {
-      // Save preferences and navigate to main app
+      // This is the final step, save preferences and navigate
+      console.log('Onboarding complete. Preferences:', selectedDomains);
       router.replace('/(tabs)');
     }
   };
 
   const canProceed = () => {
-    if (currentStep === 0) return true;
-    if (currentStep === 1) return selectedDomains.length >= 3;
-    if (currentStep === 2) return selectedDifficulty !== '';
-    return false;
+    if (currentStep === 0) return true; // Welcome step
+    if (currentStep === 1) return selectedDomains.length >= 3; // Domain selection (min 3)
+
+    // Refinement steps
+    if (currentStep >= 2 && currentStep < 2 + selectedDomains.length) {
+      const currentDomainIndex = currentStep - 2;
+      if (selectedDomains[currentDomainIndex]) {
+        // Allow proceeding if difficulty is set (or was 'skipped')
+        return selectedDomains[currentDomainIndex].difficulty !== '';
+      }
+      return false; // Should not happen
+    }
+
+    // After last refinement step, ready to proceed to app
+    if (currentStep === 2 + selectedDomains.length -1) return true;
+
+
+    // If on the (now virtual) final step after all refinements, allow proceeding
+    // This case might not be strictly necessary if button text changes to "Start Learning"
+    // and handleNext directly navigates.
+    if (currentStep === 2 + selectedDomains.length) return true;
+
+
+    return false; // Default deny
   };
 
   const renderWelcomeStep = () => (
     <View style={styles.stepContainer}>
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
+        colors={['#667eea', '#764ba2']} // These colors could come from theme.colors if desired
         style={styles.welcomeGradient}
       >
-        <Text style={styles.welcomeTitle}>Welcome to Edugram</Text>
-        <Text style={styles.welcomeSubtitle}>
+        <StyledText variant="h1" color="white" textAlign="center" style={{ marginBottom: theme.spacing.sm }}>Welcome to Edugram</StyledText>
+        <StyledText variant="h3" color="white" textAlign="center" style={{ opacity: 0.9, marginBottom: theme.spacing.xs }}>
           Your personalized learning universe
-        </Text>
+        </StyledText>
         <Text style={styles.welcomeDescription}>
           Short videos & articles, tailored to what you want to learn
         </Text>
@@ -100,20 +229,38 @@ export default function OnboardingScreen() {
         </View>
       </LinearGradient>
     </View>
+  };
+
+  const handleSubTopicToggle = (domainId: string, subTopicId: string) => {
+    setSelectedDomains(prev => prev.map(domain => {
+      if (domain.id === domainId) {
+        const newSubTopics = domain.subTopics.includes(subTopicId)
+          ? domain.subTopics.filter(st => st !== subTopicId)
+          : [...domain.subTopics, subTopicId];
+        return { ...domain, subTopics: newSubTopics };
+      }
+      return domain;
+    }));
+  };
+
+  const handleDifficultySelect = (domainId: string, difficulty: string) => {
+    setSelectedDomains(prev => prev.map(domain =>
+      domain.id === domainId ? { ...domain, difficulty } : domain
+    ));
   );
 
   const renderDomainStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Pick Your Learning Paths</Text>
-      <Text style={styles.stepSubtitle}>
+      <StyledText variant="h2" color="white" textAlign="center" style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.xs }}>Pick Your Learning Paths</StyledText>
+      <StyledText variant="body" color="textSecondary" textAlign="center" style={{ marginBottom: theme.spacing.lg, lineHeight: theme.typography.fontSizes.md * theme.typography.lineHeights.loose }}>
         Select 3 or more interests to personalize your feed
-      </Text>
+      </StyledText>
       
       <ScrollView style={styles.domainsContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.domainsGrid}>
           {domains.map((domain) => {
             const IconComponent = domain.icon;
-            const isSelected = selectedDomains.includes(domain.id);
+            const isSelected = selectedDomains.some(d => d.id === domain.id);
             
             return (
               <TouchableOpacity
@@ -150,40 +297,95 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderDifficultyStep = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>What's Your Level?</Text>
-      <Text style={styles.stepSubtitle}>
-        This helps us show you the right content difficulty
-      </Text>
-      
-      <View style={styles.difficultyContainer}>
-        {difficultyLevels.map((level) => (
+  // renderDifficultyStep is removed as difficulty is now per-domain
+
+  const renderRefinementStep = () => {
+    const currentDomainIndex = currentStep - 2;
+    if (currentDomainIndex < 0 || currentDomainIndex >= selectedDomains.length) {
+      return null; // Should not happen if logic is correct
+    }
+    const currentDomainInfo = selectedDomains[currentDomainIndex];
+    const domainDetails = domains.find(d => d.id === currentDomainInfo.id);
+
+    if (!domainDetails) return null; // Should not happen
+
+    return (
+      <View style={styles.stepContainer}>
+        <StyledText variant="h2" color="white" textAlign="center" style={{ marginTop: theme.spacing.lg, marginBottom: theme.spacing.xs }}>Refine: {domainDetails.name}</StyledText>
+        <StyledText variant="body" color="textSecondary" textAlign="center" style={{ marginBottom: theme.spacing.lg, lineHeight: theme.typography.fontSizes.md * theme.typography.lineHeights.loose }}>
+          Select sub-topics and your current skill level in {domainDetails.name}.
+        </StyledText>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Sub-topics selection */}
+          <Text style={styles.refinementSectionTitle}>Choose Sub-Topics (Optional)</Text>
+          <View style={styles.subTopicsContainer}>
+            {domainDetails.subTopics.map(subTopic => {
+              const isSelected = currentDomainInfo.subTopics.includes(subTopic.id);
+              return (
+                <TouchableOpacity
+                  key={subTopic.id}
+                  style={[
+                    styles.subTopicChip,
+                    isSelected && { backgroundColor: domainDetails.color, borderColor: domainDetails.color }
+                  ]}
+                  onPress={() => handleSubTopicToggle(domainDetails.id, subTopic.id)}
+                >
+                  <Text style={[styles.subTopicChipText, isSelected && styles.subTopicChipTextSelected]}>
+                    {subTopic.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Difficulty selection */}
+          <Text style={styles.refinementSectionTitle}>Select Your Skill Level</Text>
+          <View style={styles.difficultyContainerRefinement}>
+            {difficultyLevels.map(level => {
+              const isSelected = currentDomainInfo.difficulty === level.id;
+              return (
+                <TouchableOpacity
+                  key={level.id}
+                  style={[
+                    styles.difficultyCard,
+                    isSelected && { borderColor: domainDetails.color, backgroundColor: `${domainDetails.color}20` }
+                  ]}
+                  onPress={() => handleDifficultySelect(domainDetails.id, level.id)}
+                >
+                  <Text style={[
+                    styles.difficultyName,
+                    isSelected && { color: domainDetails.color }
+                  ]}>
+                    {level.name}
+                  </Text>
+                  <Text style={[
+                    styles.difficultyDescription,
+                    isSelected && styles.difficultyDescriptionSelected // Keep original white for selected desc
+                  ]}>
+                    {level.description}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Skip for this domain button */}
           <TouchableOpacity
-            key={level.id}
-            style={[
-              styles.difficultyCard,
-              selectedDifficulty === level.id && styles.difficultyCardSelected
-            ]}
-            onPress={() => setSelectedDifficulty(level.id)}
+            style={styles.skipButton}
+            onPress={() => {
+              handleDifficultySelect(domainDetails.id, 'skipped');
+              Promise.resolve().then(() => {
+                handleNext();
+              });
+            }}
           >
-            <Text style={[
-              styles.difficultyName,
-              selectedDifficulty === level.id && styles.difficultyNameSelected
-            ]}>
-              {level.name}
-            </Text>
-            <Text style={[
-              styles.difficultyDescription,
-              selectedDifficulty === level.id && styles.difficultyDescriptionSelected
-            ]}>
-              {level.description}
-            </Text>
+            <Text style={styles.skipButtonText}>Skip refinement for {domainDetails.name}</Text>
           </TouchableOpacity>
-        ))}
+        </ScrollView>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,48 +394,42 @@ export default function OnboardingScreen() {
           <View 
             style={[
               styles.progressFill, 
-              { width: `${((currentStep + 1) / 3) * 100}%` }
+              { width: `${((currentStep + 1) / (selectedDomains.length > 0 ? 2 + selectedDomains.length : 2)) * 100}%` }
             ]} 
           />
         </View>
         <Text style={styles.progressText}>
-          Step {currentStep + 1} of 3
+          Step {currentStep + 1} of {selectedDomains.length > 0 ? 2 + selectedDomains.length : 2}
+          {currentStep >= 2 && currentStep < 2 + selectedDomains.length && selectedDomains[currentStep - 2] ? ` (Refining: ${domains.find(d => d.id === selectedDomains[currentStep - 2].id)?.name})` : ''}
         </Text>
       </View>
 
       {currentStep === 0 && renderWelcomeStep()}
       {currentStep === 1 && renderDomainStep()}
-      {currentStep === 2 && renderDifficultyStep()}
+      {currentStep >= 2 && currentStep < 2 + selectedDomains.length && renderRefinementStep()}
+      {/* {currentStep === 2 && renderDifficultyStep()} */}
+
 
       <View style={styles.bottomContainer}>
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            !canProceed() && styles.nextButtonDisabled
-          ]}
+        <StyledButton
+          title={currentStep >= (selectedDomains.length > 0 ? 1 + selectedDomains.length : 1) ? 'Start Learning' : 'Continue'}
           onPress={handleNext}
           disabled={!canProceed()}
-        >
-          <Text style={[
-            styles.nextButtonText,
-            !canProceed() && styles.nextButtonTextDisabled
-          ]}>
-            {currentStep === 2 ? 'Start Learning' : 'Continue'}
-          </Text>
-          <ChevronRight 
-            size={20} 
-            color={canProceed() ? "#FFFFFF" : "#999999"} 
-          />
-        </TouchableOpacity>
+          variant="primary"
+          size="lg"
+          rightIcon={<ChevronRight size={20} color={canProceed() ? theme.colors.white : theme.colors.textSecondary} />}
+          fullWidth // Make button full width
+        />
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // ... (keep existing styles)
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background, // Use theme color
   },
   progressContainer: {
     paddingHorizontal: 20,
@@ -269,20 +465,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  welcomeTitle: {
-    fontSize: 32,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  welcomeSubtitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins-Medium',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
+  // welcomeTitle: { // Replaced by StyledText
+  //   fontSize: 32,
+  //   fontFamily: 'Poppins-Bold',
+  //   color: '#FFFFFF',
+  //   textAlign: 'center',
+  //   marginBottom: 12,
+  // },
+  // welcomeSubtitle: { // Replaced by StyledText
+  //   fontSize: 20,
+  //   fontFamily: 'Poppins-Medium',
+  //   color: '#FFFFFF',
+  //   textAlign: 'center',
+  //   marginBottom: 8,
+  // },
   welcomeDescription: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
@@ -305,22 +501,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginLeft: 12,
   },
-  stepTitle: {
-    fontSize: 28,
-    fontFamily: 'Poppins-Bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  stepSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#CCCCCC',
-    textAlign: 'center',
-    marginBottom: 30,
-    lineHeight: 24,
-  },
+  // stepTitle: { // Replaced by StyledText
+  //   fontSize: 28,
+  //   fontFamily: 'Poppins-Bold',
+  //   color: '#FFFFFF',
+  //   textAlign: 'center',
+  //   marginTop: 20,
+  //   marginBottom: 8,
+  // },
+  // stepSubtitle: { // Replaced by StyledText
+  //   fontSize: 16,
+  //   fontFamily: 'Inter-Regular',
+  //   color: '#CCCCCC',
+  //   textAlign: 'center',
+  //   marginBottom: 30,
+  //   lineHeight: 24,
+  // },
   domainsContainer: {
     flex: 1,
   },
@@ -381,9 +577,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
   },
-  difficultyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  // difficultyContainer: { // Original global difficulty container
+  //   flex: 1,
+  //   justifyContent: 'center',
+  // },
+  difficultyContainerRefinement: { // For per-domain difficulty
+    marginVertical: 20,
   },
   difficultyCard: {
     backgroundColor: '#1a1a1a',
@@ -414,29 +613,72 @@ const styles = StyleSheet.create({
   difficultyDescriptionSelected: {
     color: '#FFFFFF',
   },
+  refinementSectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#FFFFFF',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  subTopicsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  subTopicChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#2a2a2a',
+    borderWidth: 1,
+    borderColor: '#444444',
+  },
+  subTopicChipText: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  subTopicChipTextSelected: {
+    color: '#FFFFFF', // Text color can remain white or change based on contrast needs
+  },
+  skipButton: {
+    backgroundColor: 'transparent',
+    borderColor: '#555555',
+    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  skipButtonText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
+    color: '#AAAAAA',
+  },
   bottomContainer: {
     paddingHorizontal: 20,
     paddingBottom: 40,
     paddingTop: 20,
   },
-  nextButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#8B5CF6',
-    paddingVertical: 16,
-    borderRadius: 25,
-  },
-  nextButtonDisabled: {
-    backgroundColor: '#333333',
-  },
-  nextButtonText: {
-    fontSize: 18,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
-  nextButtonTextDisabled: {
-    color: '#999999',
-  },
+  // nextButton: { // Replaced by StyledButton
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   backgroundColor: '#8B5CF6',
+  //   paddingVertical: 16,
+  //   borderRadius: 25,
+  // },
+  // nextButtonDisabled: { // Handled by StyledButton's disabled state
+  //   backgroundColor: '#333333',
+  // },
+  // nextButtonText: { // Handled by StyledButton's text props
+  //   fontSize: 18,
+  //   fontFamily: 'Poppins-SemiBold',
+  //   color: '#FFFFFF',
+  //   marginRight: 8,
+  // },
+  // nextButtonTextDisabled: { // Handled by StyledButton's disabled state
+  //   color: '#999999',
+  // },
 });
